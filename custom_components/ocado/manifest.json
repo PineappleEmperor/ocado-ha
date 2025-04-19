@@ -1,0 +1,14 @@
+{
+    "domain": "ocado",
+    "name": "Ocado",
+    "codeowners": [
+      "@PineappleEmperor"
+    ],
+    "config_flow": true,
+    "dependencies": [],
+    "documentation": "https://github.com/PineappleEmperor/ocado-ha/blob/main/README.md",
+    "iot_class": "cloud_polling",
+    "issue_tracker": "https://github.com/PineappleEmperor/ocado-ha/issues",
+    "requirements": [],
+    "version": "0.0.0"
+  }
