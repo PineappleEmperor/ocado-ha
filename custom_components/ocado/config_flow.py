@@ -1,11 +1,4 @@
-"""Config flows for our integration.
-
-This config flow demonstrates many aspects of possible config flows.
-
-Multi step flows
-Menus
-Using your api data in your flow
-"""
+"""Config flow for the Ocado integration."""
 
 from __future__ import annotations
 
@@ -21,14 +14,16 @@ from homeassistant.config_entries import (
     OptionsFlow,
 )
 from homeassistant.const import (
+    CONF_NAME,
+    CONF_PASSWORD,
+    CONF_PORT,
+    CONF_USERNAME,
+    CONF_VERIFY_SSL,
     CONF_CHOOSE,
     CONF_DESCRIPTION,
-    CONF_HOST,
     CONF_MINIMUM,
-    CONF_PASSWORD,
     CONF_SCAN_INTERVAL,
     CONF_SENSORS,
-    CONF_USERNAME,
 )
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import HomeAssistantError
@@ -36,7 +31,7 @@ from homeassistant.helpers.selector import selector
 
 from .api import API, APIAuthError, APIConnectionError
 from .const import DEFAULT_SCAN_INTERVAL, DOMAIN, MIN_SCAN_INTERVAL
-from .coordinator import ExampleCoordinator
+from .coordinator import OcadoCoordinator
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -101,10 +96,11 @@ async def validate_settings(hass: HomeAssistant, data: dict[str, Any]) -> bool:
     return True
 
 
-class ExampleConfigFlow(ConfigFlow, domain=DOMAIN):
-    """Handle a config flow for Example Integration."""
+class OcadoConfigFlow(ConfigFlow, domain=DOMAIN):
+    """Handle a config flow for Ocado Integration."""
 
     VERSION = 1
+    MINOR_VERSION = 1
     _input_data: dict[str, Any]
     _title: str
 

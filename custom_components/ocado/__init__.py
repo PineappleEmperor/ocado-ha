@@ -1,4 +1,4 @@
-"""The SettleUp integration."""
+"""The Ocado integration."""
 
 import logging
 from typing import Any
@@ -6,6 +6,7 @@ from typing import Any
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
+
 from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers.device_registry import DeviceEntry
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
@@ -13,8 +14,8 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 from homeassistant.helpers import config_validation as cv, device_registry as dr
 
 from .const import DOMAIN
-from .coordinator import ExampleCoordinator
-from .services import ExampleServicesSetup
+from .coordinator import OcadoCoordinator
+from .services import OcadoServicesSetup
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -24,7 +25,7 @@ PLATFORMS: list[Platform] = [
 
 CONFIG_SCHEMA = cv.empty_config_schema(DOMAIN)
 
-type MyConfigEntry = ConfigEntry[RuntimeData]
+type OcadoConfigEntry = ConfigEntry[RuntimeData]
 
 @dataclass
 class RuntimeData:
@@ -34,9 +35,9 @@ class RuntimeData:
     cancel_update_listener: Callable
 
 
-async def async_setup_entry(hass: HomeAssistant, config_entry: MyConfigEntry) -> bool:
-    """Set up the SettleUp integration."""
-    _LOGGER.info("Setting up the SettleUp integration")
+async def async_setup_entry(hass: HomeAssistant, config_entry: OcadoConfigEntry) -> bool:
+    """Set up the Ocado integration."""
+    _LOGGER.info("Setting up the Ocado integration")
 
     # Check if the entry is already set up
     if DOMAIN in hass.data and config_entry.entry_id in hass.data[DOMAIN]:
@@ -120,7 +121,7 @@ async def async_remove_config_entry_device(
     """
     return True
 
-async def async_unload_entry(hass: HomeAssistant, config_entry: MyConfigEntry) -> bool:
+async def async_unload_entry(hass: HomeAssistant, config_entry: OcadoConfigEntry) -> bool:
     """Unload a config entry.
 
     This is called when you remove your integration or shutdown HA.
