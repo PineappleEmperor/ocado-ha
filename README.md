@@ -1,4 +1,10 @@
-[![Python package](https://github.com/PineappleEmperor/ocado-ha/actions/workflows/python_validate.yml/badge.svg?branch=main)](https://github.com/PineappleEmperor/ocado-ha/actions/workflows/python_validate.yml) [![Validate with hassfest](https://github.com/PineappleEmperor/ocado-ha/actions/workflows/hassfest_validate.yml/badge.svg?branch=main)](https://github.com/PineappleEmperor/ocado-ha/actions/workflows/hassfest_validate.yml) [![HACS Action](https://github.com/PineappleEmperor/ocado-ha/actions/workflows/hacs_validate.yml/badge.svg?branch=main)](https://github.com/PineappleEmperor/ocado-ha/actions/workflows/hacs_validate.yml)
+[![release](https://img.shields.io/github/v/release/PineappleEmperor/ocado-ha)](https://github.com/PineappleEmperor/ocado-ha/releases)
+[![commits-since-latest](https://img.shields.io/github/commits-since/PineappleEmperor/ocado-ha/latest?style=flat-square)](https://github.com/PineappleEmperor/ocado-ha/commits/main/)
+![stars](https://img.shields.io/github/stars/PineappleEmperor/ocado-ha?style=flat)
+\
+[![Python package](https://github.com/PineappleEmperor/ocado-ha/actions/workflows/python_validate.yml/badge.svg?branch=main)](https://github.com/PineappleEmperor/ocado-ha/actions/workflows/python_validate.yml)
+[![Validate with hassfest](https://github.com/PineappleEmperor/ocado-ha/actions/workflows/hassfest_validate.yml/badge.svg?branch=main)](https://github.com/PineappleEmperor/ocado-ha/actions/workflows/hassfest_validate.yml)
+[![HACS Action](https://github.com/PineappleEmperor/ocado-ha/actions/workflows/hacs_validate.yml/badge.svg?branch=main)](https://github.com/PineappleEmperor/ocado-ha/actions/workflows/hacs_validate.yml)
 [![Release](https://github.com/PineappleEmperor/ocado-ha/actions/workflows/semantic_release.yml/badge.svg?branch=main)](https://github.com/PineappleEmperor/ocado-ha/actions/workflows/semantic_release.yml)
 
 Ocado (UK) Integration for Home Assistant
