@@ -12,6 +12,8 @@ Ocado (UK) Integration for Home Assistant
 
 This is an unofficial Ocado integration for Home Assistant. This integration creates several sensors with information about your next delivery, and when you can edit your next delivery.
 
+:warning: Please note this integration is not yet ready for use!
+
 Features
 --------
 
