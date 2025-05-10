@@ -1,6 +1,7 @@
 """Config flow for the Ocado integration."""
 
 from __future__ import annotations
+from imaplib import IMAP4_SSL as imap
 
 import logging
 from typing import Any
@@ -13,82 +14,85 @@ from homeassistant.config_entries import (
     ConfigFlowResult,
     OptionsFlow,
 )
-from homeassistant.const import (
-    CONF_NAME,
-    CONF_PASSWORD,
-    CONF_PORT,
-    CONF_USERNAME,
-    CONF_VERIFY_SSL,
-    CONF_CHOOSE,
-    CONF_DESCRIPTION,
-    CONF_MINIMUM,
+
+from .const import (
+    DOMAIN,
+    CONF_IMAP_DAYS,
+    CONF_IMAP_FOLDER,
+    CONF_IMAP_PORT,
+    CONF_IMAP_SERVER,
     CONF_SCAN_INTERVAL,
-    CONF_SENSORS,
+    DEFAULT_IMAP_DAYS,
+    DEFAULT_IMAP_FOLDER,
+    DEFAULT_IMAP_PORT,
+    DEFAULT_IMAP_SERVER,
+    DEFAULT_SCAN_INTERVAL,
 )
+
+from homeassistant.const import (
+    CONF_EMAIL,
+    CONF_PASSWORD,
+    CONF_SCAN_INTERVAL,
+)
+
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.selector import selector
+import homeassistant.helpers.config_validation as cv
 
 from .api import API, APIAuthError, APIConnectionError
-from .const import DEFAULT_SCAN_INTERVAL, DOMAIN, MIN_SCAN_INTERVAL
-from .coordinator import OcadoCoordinator
+from .coordinator import OcadoUpdateCoordinator
 
 _LOGGER = logging.getLogger(__name__)
 
 # ----------------------------------------------------------------------------
-# Adjust the data schema to the data that you need
+# This is the setup data structure that we will be using
 # ----------------------------------------------------------------------------
-STEP_USER_DATA_SCHEMA = vol.Schema(
+OCADO_SCHEMA = vol.Schema(
     {
-        vol.Required(CONF_HOST, description={"suggested_value": "10.10.10.1"}): str,
-        vol.Required(CONF_USERNAME, description={"suggested_value": "test"}): str,
-        vol.Required(CONF_PASSWORD, description={"suggested_value": "1234"}): str,
+        vol.Required(CONF_EMAIL, description={"suggested_value": ""}): cv.string,
+        vol.Required(CONF_PASSWORD, description={"suggested_value": "test"}): cv.string,
+        vol.Required(CONF_IMAP_SERVER, default=DEFAULT_IMAP_SERVER, description={"suggested_value": DEFAULT_IMAP_SERVER}): cv.string,
+        vol.Required(CONF_IMAP_PORT, default=DEFAULT_IMAP_PORT, description={"suggested_value": DEFAULT_IMAP_PORT}): cv.positive_int,
+        vol.Required(CONF_IMAP_FOLDER, default=DEFAULT_IMAP_FOLDER, description={"suggested_value": DEFAULT_IMAP_FOLDER}): cv.string,
+        # days is an option
+        # vol.Required(CONF_IMAP_DAYS, default=DEFAULT_IMAP_DAYS, description={"suggested_value": DEFAULT_IMAP_DAYS}): cv.positive_int,
+        # vol.Required(CONF_IMAP_SSL, default=True, description={"suggested_value": True}): cv.boolean,
+        # SCAN interval can be updated at a later point, so should be an option
+        # vol.Required(CONF_SCAN_INTERVAL, default=DEFAULT_SCAN_INTERVAL, description={"suggested_value": DEFAULT_SCAN_INTERVAL}): cv.positive_int,
     }
 )
 
 # ----------------------------------------------------------------------------
-# Example selectors
-# There are lots of selectors available for you to use, described at
+# Selectors described at
 # https://www.home-assistant.io/docs/blueprint/selectors/
 # ----------------------------------------------------------------------------
+# could include a selector for the imap integration and use that as a way to update more frequently..
 STEP_SETTINGS_DATA_SCHEMA = vol.Schema(
     {
         vol.Required(CONF_SENSORS): selector(
-            {"entity": {"filter": {"integration": "sun"}}}
+            {"entity": {"filter": {"integration": "imap"}}}
         ),
         # Take note of translation key and entry in strings.json and translation files.
-        vol.Required(CONF_CHOOSE): selector(
-            {
-                "select": {
-                    "options": ["all", "light", "switch"],
-                    "mode": "dropdown",
-                    "translation_key": "example_selector",
-                }
-            }
-        ),
-        vol.Required(CONF_MINIMUM): selector({"number": {"min": 0, "max": 100}}),
     }
 )
 
 
-async def validate_input(hass: HomeAssistant, data: dict[str, Any]) -> dict[str, Any]:
-    """Validate the user input allows us to connect.
-
-    Data has the keys from STEP_USER_DATA_SCHEMA with values provided by the user.
-    """
+async def _validate_input(hass: HomeAssistant, data: dict[str, Any]) -> dict[str, Any]:
+    """Validate the user input allows us to connect."""
     try:
-        # ----------------------------------------------------------------------------
-        # If your api is not async, use the executor to access it
-        # If you cannot connect, raise CannotConnect
-        # If the authentication is wrong, raise InvalidAuth
-        # ----------------------------------------------------------------------------
-        api = API(data[CONF_HOST], data[CONF_USERNAME], data[CONF_PASSWORD], mock=True)
-        await hass.async_add_executor_job(api.get_data)
+        server = imap(host = data[CONF_IMAP_SERVER], port = data[CONF_IMAP_PORT], timeout = 30)
+        await server.login(CONF_EMAIL, CONF_PASSWORD)
+        server.close()
+        server.logout()
     except APIAuthError as err:
         raise InvalidAuth from err
     except APIConnectionError as err:
         raise CannotConnect from err
-    return {"title": f"Example Integration - {data[CONF_HOST]}"}
+    
+    if data[CONF_SCAN_INTERVAL] < 60:
+        raise ValueError(f"Scan interval is too low, minimum is 60 {data[CONF_SCAN_INTERVAL]}")
+    return {"title": f"Ocado Integration - {data[CONF_IMAP_SERVER]}"}
 
 
 async def validate_settings(hass: HomeAssistant, data: dict[str, Any]) -> bool:
@@ -96,11 +100,11 @@ async def validate_settings(hass: HomeAssistant, data: dict[str, Any]) -> bool:
     return True
 
 
-class OcadoConfigFlow(ConfigFlow, domain=DOMAIN):
+class OcadoConfigFlowHandler(ConfigFlow, domain=DOMAIN):
     """Handle a config flow for Ocado Integration."""
 
     VERSION = 1
-    MINOR_VERSION = 1
+    MINOR_VERSION = 0
     _input_data: dict[str, Any]
     _title: str
 
@@ -132,7 +136,7 @@ class OcadoConfigFlow(ConfigFlow, domain=DOMAIN):
                 # You can do any validation you want or no validation on each step.
                 # The errors["base"] values match the values in your strings.json and translation files.
                 # ----------------------------------------------------------------------------
-                info = await validate_input(self.hass, user_input)
+                info = await _validate_input(self.hass, user_input)
             except CannotConnect:
                 errors["base"] = "cannot_connect"
             except InvalidAuth:
@@ -225,7 +229,7 @@ class OcadoConfigFlow(ConfigFlow, domain=DOMAIN):
         if user_input is not None:
             try:
                 user_input[CONF_HOST] = config_entry.data[CONF_HOST]
-                await validate_input(self.hass, user_input)
+                await _validate_input(self.hass, user_input)
             except CannotConnect:
                 errors["base"] = "cannot_connect"
             except InvalidAuth:

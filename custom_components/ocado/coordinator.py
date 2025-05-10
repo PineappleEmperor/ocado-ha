@@ -6,8 +6,13 @@ from typing import Any
 from imaplib import IMAP4_SSL as imap
 
 from homeassistant.config_entries import ConfigEntry
-# from homeassistant.const import (
+from homeassistant.const import (
+    CONF_EMAIL,
+    CONF_PASSWORD,
+)
 from .const import (
+    OCADO_ADDRESS,
+    OCADO_CONFIRMATION_SUBJECT,
     CONF_SCAN_INTERVAL,
     CONF_IMAP_SERVER,
     CONF_IMAP_PORT,
@@ -16,7 +21,8 @@ from .const import (
     CONF_IMAP_DAYS,
     CONF_EMAIL,
     CONF_PASSWORD,
-    DATA_NETWORK_INFO,
+    DEFAULT_SCAN_INTERVAL,
+    DEFAULT_IMAP_DAYS
 )
 from homeassistant.core import DOMAIN, HomeAssistant
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
@@ -24,37 +30,40 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, Upda
 
 
 _LOGGER = logging.getLogger(__name__)
+type OcadoConfigEntry = ConfigEntry(OcadoUpdateCoordinator)
 
-@callback
-@bind_hass
-def get_network_info(hass: HomeAssistant) -> dict[str, Any] | None:
-    """Return Host Network information.
+# @callback
+# @bind_hass
+# def get_network_info(hass: HomeAssistant) -> dict[str, Any] | None:
+#     """Return Host Network information.
 
-    Async friendly.
-    """
-    return hass.data.get(DATA_NETWORK_INFO)
+#     Async friendly.
+#     """
+#     return hass.data.get(DATA_NETWORK_INFO)
 
 class OcadoUpdateCoordinator(DataUpdateCoordinator):
     """Coordinator to manage all the data from Ocado emails."""
-    data: list[dict[str, Any]]
+    # data: list[dict[str, Any]]
 
     def __init__(self, hass: HomeAssistant, config_entry: ConfigEntry) -> None:
-        """Initialize coordinator."""
+        """Initialize the data update coordinator."""
         # Set variables from values entered in config flow setup
         self._hass = hass
-        self.session = async_get_clientsession(self._hass)
         self.email_address = config_entry.data[CONF_EMAIL]
         self.password = config_entry.data[CONF_PASSWORD]
-        self.imap_host = config_entry.data[CONF_IMAP_HOST]
+        self.imap_host = config_entry.data[CONF_IMAP_SERVER]
         self.imap_port = config_entry.data[CONF_IMAP_PORT]
         self.imap_folder = config_entry.data[CONF_IMAP_FOLDER]
-        self.imap_ssl = config_entry.data[CONF_IMAP_SSL]
-        self.imap_days = config_entry.data[CONF_IMAP_DAYS]
-        self.confirmation_flag = [u'SINCE', date.today() - timedelta(days=self.imap_days), u'FROM', 'customerservices@ocado.com', u'SUBJECT','Confirmation of your order']
+        # self.imap_ssl = config_entry.data[CONF_IMAP_SSL]
+        # self.imap_days = config_entry.data[CONF_IMAP_DAYS]
+        self.confirmation_flag = [u'SINCE', date.today() - timedelta(days=self.imap_days), u'FROM', OCADO_ADDRESS, u'SUBJECT',OCADO_CONFIRMATION_SUBJECT]
                 
         # set variables from options. You need a default here in case options have not been set
-        self.poll_interval = config_entry.options.get(
-            CONF_SCAN_INTERVAL, 300
+        self.scan_interval = config_entry.options.get(
+            CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL            
+        )
+        self.imap_days = config_entry.options.get(
+            CONF_IMAP_DAYS, DEFAULT_IMAP_DAYS
         )
 
         # Initialise DataUpdateCoordinator

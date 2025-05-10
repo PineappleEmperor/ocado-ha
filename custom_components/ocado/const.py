@@ -15,15 +15,19 @@ OCADO_SUBJECT_DICT = {
     OCADO_RECEIPT_SUBJECT: "receipt"
 }
 
-CONF_SCAN_INTERVAL = 300
-CONF_IMAP_HOST = 'imap_host'
+CONF_IMAP_DAYS = 'imap_days'
+CONF_IMAP_FOLDER = 'imap_folder'
 CONF_IMAP_PORT = 'imap_port'
-CONF_IMAP_FOLDER = 'INBOX'
-CONF_IMAP_SSL = 'ssl'
-CONF_IMAP_DAYS = 30
+CONF_IMAP_SERVER = 'imap_host'
+CONF_IMAP_SSL = 'imap_ssl'
+CONF_SCAN_INTERVAL = 'scan_interval'
 
-CONF_EMAIL = 'email'
-CONF_PASSWORD = 'password'
+DEFAULT_IMAP_DAYS = 31
+DEFAULT_IMAP_FOLDER = 'INBOX'
+DEFAULT_IMAP_PORT = 993
+DEFAULT_IMAP_SERVER = 'imap.gmail.com'
+DEFAULT_IMAP_SSL = 'ssl'
+DEFAULT_SCAN_INTERVAL = 600
 
 EMAIL_ATTR_FROM = 'from'
 EMAIL_ATTR_SUBJECT = 'subject'
@@ -77,3 +81,20 @@ class OcadoEmails:
         self.confirmations = confirmations
         self.new_totals = new_totals
         self.receipts = receipts
+
+class OcadoOrder:
+    """Class for Ocado orders."""
+    def __init__(self,
+        order_number="",
+        delivery_datetime="",
+        delivery_end_datetime="",
+        edit_datetime="",
+        estimated_total=""
+    ):
+        self.order_number = order_number
+        self.delivery_datetime = delivery_datetime
+        self.delivery_end_datetime = delivery_end_datetime
+        self.edit_datetime = edit_datetime
+        self.estimated_total = estimated_total
+    def __str__(self):
+        return f'"order_number":{self.order_number}, "delivery_datetime":{self.delivery_datetime}, "delivery_end_datetime":{self.delivery_end_datetime}, "edit_datetime":{self.edit_datetime}, "estimated_total":{self.estimated_total}'

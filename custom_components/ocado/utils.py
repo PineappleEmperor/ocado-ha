@@ -21,6 +21,7 @@ from .const import(
     REGEX_ORDINALS,
     OcadoEmail,
     OcadoEmails,
+    OcadoOrder,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -109,13 +110,13 @@ def capitalise(text: str) -> str:
 
 
 # reversed so that we start with the newest message and break on it
-def email_triage(imap_account_email: str,imap_account_password: str,imap_server: str, imap_port: int) -> OcadoEmails:
+def email_triage(imap_account_email: str,imap_account_password: str,imap_server: str, imap_port: int, imap_folder: str, imap_days: int) -> OcadoEmails:
     """Access the IMAP inbox and retrieve all the relevant Ocado UK emails from the last month."""
     today = date.today()
     server = imap(host = imap_server, port = imap_port, timeout= 30)
-    server.login(imap_account_email,imap_account_password)
-    server.select('INBOX', readonly=True)
-    flags = fr'SINCE "{(today - timedelta(days=31)).strftime("%d-%b-%Y")}" FROM "{OCADO_ADDRESS}" NOT SUBJECT "{OCADO_CUTOFF_SUBJECT}"'
+    server.login(imap_account_email, imap_account_password)
+    server.select(imap_folder, readonly=True)
+    flags = fr'SINCE "{(today - timedelta(days=imap_days)).strftime("%d-%b-%Y")}" FROM "{OCADO_ADDRESS}" NOT SUBJECT "{OCADO_CUTOFF_SUBJECT}"'
     result, message_ids = server.search(None,flags)
     if result != "OK":
         _LOGGER.error("Could not connect to inbox.")
@@ -140,8 +141,9 @@ def email_triage(imap_account_email: str,imap_account_password: str,imap_server:
                 ocado_new_totals.append(ocado_email)
             elif ocado_email.type == "receipt":
                 if len(ocado_receipts) == 0:
-                    ocado_receipts.append(ocado_email)
+                    ocado_receipts.append(ocado_email)                    
                     # TODO add code to download the receipt attachment
+                    # ocado_email.message_id
     server.close()
     server.logout()
     triaged_emails = OcadoEmails(
@@ -190,3 +192,17 @@ def _parse_email(message_id: bytes, message_data: bytes) -> OcadoEmail:
         order_number = order_number,
     )
     return ocado_email
+
+
+def order_parse(ocado_email: OcadoEmail) -> OcadoOrder:
+    """Parse an Ocado confirmation eamil into an OcadoOrder object."""
+    message = ocado_email.body
+    delivery_datetime = get_delivery_datetime(message)
+    order = OcadoOrder(
+        order_number = ocado_email.order_number,
+        delivery_datetime = delivery_datetime,
+        delivery_end_datetime= delivery_datetime + timedelta(hours=1),
+        edit_datetime = get_edit_datetime(message),
+        estimated_total = get_estimated_total(message),
+    )
+    return order

@@ -1,103 +1,106 @@
-"""Sensor setup for Ocado UK Integration.
-
-Here we use a different method to define some of our entity classes.
-As, in our example, so much is common, we use our base entity class to define
-many properties, then our base sensor class to define the property to get the
-value of the sensor.
-
-As such, for all our other sensor types, we can just set the _attr_ value to
-keep our code small and easily readable.  You can do this for all entity properties(attributes)
-if you so wish, or mix and match to suit.
-"""
+"""Sensor setup for Ocado UK Integration."""
 
 from dataclasses import dataclass
 import logging
+from typing import Any
 
 from homeassistant.components.sensor import (
     SensorDeviceClass,
     SensorEntity,
     SensorStateClass,
 )
-# from homeassistant.const import (
-#     UnitOfElectricCurrent,
-#     UnitOfElectricPotential,
-#     UnitOfEnergy,
-#     UnitOfTemperature,
-# )
+from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-from . import MyConfigEntry
+# from . import MyConfigEntry
+from .const import (
+    DOMAIN,
+)
 from .base import ExampleBaseEntity
-from .coordinator import ExampleCoordinator
+from .coordinator import OcadoConfigEntry, OcadoUpdateCoordinator
 
+PLATFORMS = [Platform.SENSOR]
 _LOGGER = logging.getLogger(__name__)
+CONFIG_SCHEMA = cv.empty_config_schema(DOMAIN)
 
+# @dataclass
+# class SensorTypeClass:
+#     """Class for holding sensor type to sensor class."""
 
-@dataclass
-class SensorTypeClass:
-    """Class for holding sensor type to sensor class."""
-
-    type: str
-    sensor_class: object
+#     type: str
+#     sensor_class: object
 
 
 async def async_setup_entry(
     hass: HomeAssistant,
-    config_entry: MyConfigEntry,
+    config_entry: OcadoConfigEntry,
     async_add_entities: AddEntitiesCallback,
-):
+) -> None:
     """Set up the Sensors."""
     # This gets the data update coordinator from the config entry runtime data as specified in your __init__.py
-    coordinator: ExampleCoordinator = config_entry.runtime_data.coordinator
-
-    # ----------------------------------------------------------------------------
-    # Here we enumerate the sensors in your data value from your
-    # DataUpdateCoordinator and add an instance of your sensor class to a list
-    # for each one.
-    # This maybe different in your specific case, depending on how your data is
-    # structured
-    # ----------------------------------------------------------------------------
-
-    sensor_types = [
-        SensorTypeClass("current", ExampleCurrentSensor),
-        SensorTypeClass("energy_delivered", ExampleEnergySensor),
-        SensorTypeClass("off_timer", ExampleOffTimerSensor),
-        SensorTypeClass("temperature", ExampleTemperatureSensor),
-        SensorTypeClass("voltage", ExampleVoltageSensor), 
+    coordinator: OcadoUpdateCoordinator = config_entry.runtime_data.coordinator
+    sensors = [
+        OcadoDelivery(coordinator),
+        OcadoEdit(coordinator),
+        OcadoBBDs(coordinator),
+        OcadoOrderList(coordinator)
     ]
-
-    sensors = []
-
-    for sensor_type in sensor_types:
-        sensors.extend(
-            [
-                sensor_type.sensor_class(coordinator, device, sensor_type.type)
-                for device in coordinator.data
-                if device.get(sensor_type.type)
-            ]
-        )
-
-    # Now create the sensors.
     async_add_entities(sensors)
 
 
-class ExampleBaseSensor(ExampleBaseEntity, SensorEntity):
-    """Implementation of a sensor.
+class OcadoDelivery(ExampleBaseEntity, SensorEntity):
+    """This sensor returns the next delivery information."""
 
-    This inherits our ExampleBaseEntity to set common properties.
-    See base.py for this class.
+    def __init__(self, coordinator: OcadoUpdateCoordinator) -> None:
+        """Initialise the sensor."""
+        # super().__init__(coordinator)
+        self.coordinator = coordinator
+        self._hass_custom_attributes = {}
+        self._attr_name = "Ocado Next Delivery"
+        self._attr_unique_id = "ocado_next_delivery"
+        self._globalid = "ocado_next_delivery"
+        self._attr_icon = "mdi:cart-outline"
+        self._attr_state = None
 
-    https://developers.home-assistant.io/docs/core/entity/sensor
-    """
+    # @callback
+    # def _handle_coordinator_update(self) -> None:
+    #     """Update sensor with latest data from coordinator."""
+    #     # This method is called by your DataUpdateCoordinator when a successful update runs.
+    #     # self.device = self.coordinator.get_device(self.device_id)
+    #     _LOGGER.debug(
+    #         "Updating device: %s, %s",
+    #         self.device_id,
+    #         self.coordinator.get_device_parameter(self.device_id, "device_name"),
+    #     )
+    #     self.async_write_ha_state()
+
+    # @property
+    # def native_value(self) -> int | float:
+    #     """Return the state of the entity."""
+    #     # Using native value and native unit of measurement, allows you to change units
+    #     # in Lovelace and HA will automatically calculate the correct value.
+    #     return self.coordinator.get_device_parameter(self.device_id, self.parameter)
+
+    # @property
+    # def name(self) -> str:
+    #     """Return the name of the sensor."""
+    #     return self.parameter.replace("_", " ").title()
+
+    # @property
+    # def unique_id(self) -> str:
+    #     """Return unique id."""
 
     @property
-    def native_value(self) -> int | float:
-        """Return the state of the entity."""
-        # Using native value and native unit of measurement, allows you to change units
-        # in Lovelace and HA will automatically calculate the correct value.
-        return self.coordinator.get_device_parameter(self.device_id, self.parameter)
+    def state(self) -> Any:
+        """Return the current state of the sensor."""
+        return self._attr_state
 
+    @property
+    def extra_state_attributes(self):
+        """Return the state attributes of the sensor."""
+        return self._hass_custom_attributes
 
 class ExampleCurrentSensor(ExampleBaseSensor):
     """Class to handle current sensors.

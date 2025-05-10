@@ -10,6 +10,10 @@ Features
 --------
 
 
+Future Plans
+--------
+1. Adding best before date sensors from the last delivery.
+
 Installation
 ------------
 
@@ -29,8 +33,8 @@ Configuration
 
 1.  In Home Assistant, navigate to **Configuration** > **Devices & Services**.
 2.  Click on **Add Integration** and search for "Ocado".
-3.  
 
 ### Configuration Options
 
 You can configure the integration options by navigating to **Configuration** > **Devices & Services**, selecting the Ocado integration, and clicking on **Options**.
+
