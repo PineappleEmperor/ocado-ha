@@ -54,7 +54,7 @@ def get_estimated_total(message: str) -> str:
     raise ValueError(f"Failed to parse estimated total from message {message.get('Subject')}.")
 
 
-def get_delivery_datetime(message: str) -> datetime:
+def get_delivery_datetimes(message: str) -> list[datetime] | None:
     """Parse and return the delivery datetime."""
     raw = re.search(fr"Delivery\sdate:\s{1,20}(?:{REGEX_DAY_FULL})\s(?P<day>{REGEX_DATE})\s(?P<month>{REGEX_MONTH_FULL})",message)
     if raw:
@@ -73,15 +73,18 @@ def get_delivery_datetime(message: str) -> datetime:
     else:
         _LOGGER.error("Year not found when retrieving delivery datetime from message.")
         raise ValueError("Year not found when retrieving delivery datetime from message.")
-    delivery_time_raw = re.search(fr"Delivery\stime:\s{1,20}(?P<start>{REGEX_TIME})\sand\s(?P<end>{REGEX_TIME})",message)
+    delivery_time_raw = re.search(fr"Delivery\stime:\s{1,20}(?P<start>{REGEX_TIME})\s-\s(?P<end>{REGEX_TIME})",message)
     if delivery_time_raw:
         start_time = re.sub(r"pm",r"PM",re.sub(r"am",r"AM",delivery_time_raw.group('start')))
+        end_time = re.sub(r"pm",r"PM",re.sub(r"am",r"AM",delivery_time_raw.group('end')))
     else:        
         _LOGGER.error("Start time not found when retrieving delivery datetime from message %s.", message.get('Subject'))
         raise ValueError(f"Start time not found when retrieving delivery datetime from message {message.get('Subject')}.")
     delivery_datetime_raw = year + '-' + month + '-' + day + ' ' + start_time
     delivery_datetime = datetime.strptime(delivery_datetime_raw,'%Y-%B-%d %I:%M%p')
-    return delivery_datetime
+    delivery_window_end_raw = year + '-' + month + '-' + day + ' ' + end_time
+    delivery_window_end = datetime.strptime(delivery_window_end_raw,'%Y-%B-%d %I:%M%p')
+    return delivery_datetime, delivery_window_end
 
 
 def get_edit_datetime(message: str) -> datetime:
@@ -130,16 +133,21 @@ def email_triage(imap_account_email: str,imap_account_password: str,imap_server:
         result, message_data = server.fetch(message_id,"(RFC822)")
         message_data = message_data[0][1]
         ocado_email = _parse_email(message_id, message_data)
+        # If the type of email is a cancellation, add the order number to check for later
         if ocado_email.type == "cancellation":
             ocado_cancelled.append(ocado_email.order_number)
+        # If the order number isn't in the list of cancelled order numbers
         if ocado_email.order_number not in ocado_cancelled:
+            # Make sure we're not adding an older version of an order we already have
             if ocado_email.order_number not in ocado_orders:
                 ocado_orders.append(ocado_email.order_number)
+            # Next, put it into the correct list
             if ocado_email.type == "confirmation":
                 ocado_confirmations.append(ocado_email)
             elif ocado_email.type == "new_total":
                 ocado_new_totals.append(ocado_email)
             elif ocado_email.type == "receipt":
+                # We only care about the most recent receipt
                 if len(ocado_receipts) == 0:
                     ocado_receipts.append(ocado_email)                    
                     # TODO add code to download the receipt attachment
@@ -195,14 +203,33 @@ def _parse_email(message_id: bytes, message_data: bytes) -> OcadoEmail:
 
 
 def order_parse(ocado_email: OcadoEmail) -> OcadoOrder:
-    """Parse an Ocado confirmation eamil into an OcadoOrder object."""
+    """Parse an Ocado confirmation email into an OcadoOrder object."""
     message = ocado_email.body
-    delivery_datetime = get_delivery_datetime(message)
+    delivery_datetime, delivery_window_end = get_delivery_datetimes(message)
     order = OcadoOrder(
         order_number = ocado_email.order_number,
         delivery_datetime = delivery_datetime,
-        delivery_end_datetime= delivery_datetime + timedelta(hours=1),
+        delivery_window_end = delivery_window_end,
         edit_datetime = get_edit_datetime(message),
         estimated_total = get_estimated_total(message),
     )
     return order
+
+
+def iconify(days: int) -> str:
+    """Parse a number of days into an icon."""
+    if days < 0:
+        return "mdi:close-circle"
+    elif days == 0:
+        return "mdi:truck-fast"
+    elif days > 9:
+        return "mdi:numeric-9-plus-circle"
+    else:
+        return "mdi:numeric-" + str(days) + "-circle"
+
+
+def get_window(delivery_datetime: datetime, delivery_window_end: datetime) -> str:
+    """Returns the delivery window in string format."""
+    start = delivery_datetime.strftime("%H:%M")
+    end = delivery_window_end.strftime("%H:%M")
+    return start + " - " + end

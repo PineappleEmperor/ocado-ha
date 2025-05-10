@@ -1,4 +1,5 @@
 """Constants for the Ocado integration."""
+from datetime import date, datetime
 
 DOMAIN = "ocado"
 
@@ -29,6 +30,8 @@ DEFAULT_IMAP_SERVER = 'imap.gmail.com'
 DEFAULT_IMAP_SSL = 'ssl'
 DEFAULT_SCAN_INTERVAL = 600
 
+DEVICE_CLASS = "ocado_deliveries"
+
 EMAIL_ATTR_FROM = 'from'
 EMAIL_ATTR_SUBJECT = 'subject'
 EMAIL_ATTR_BODY = 'body'
@@ -40,13 +43,22 @@ REGEX_DAY_SHORT = r"Mon|Tue|Wed|Thu|Fri|Sat|Sun"
 REGEX_MONTH_FULL = r"January|February|March|April|May|June|July|August|September|October|November|December"
 REGEX_MONTH_SHORT = r"Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec"
 REGEX_YEAR = r"(?:19|20)\d{2}"
-REGEX_TIME = r"(1[0-2]|0?[1-9]):([0-5][0-9]) ?([AaPp][Mm])?"
+REGEX_TIME = r"(0?[1-9]|1[0-2]):[0-5][0-9] ?([AaPp][Mm])?"
 REGEX_ORDINALS = r"st|nd|rd|th"
 
 REGEX_WEIGHT = r"(?:\d+)?k?g?\s?"
 REGEX_EACH = REGEX_WEIGHT + r"\([\\u00a3|£]\d{1,2}.\d{2}\/EACH\)"
 REGEX_WEIGHT_QUANTITY_COST = REGEX_WEIGHT + r"\d\/\d\s?\d{1,2}.\d{1,2}"
 REGEX_WEIGHT_QUANTITY_EACH = REGEX_EACH + r"\s?\d\/\d{1,2}.?\d{1,2}?\s?\d{1,2}.\d{2}"
+
+EMPTY_ATTRIBUTES = {
+    "order_number": None,
+    "delivery_date": None,
+    "delivery_window": None,
+    "edit_date": None,
+    "edit_time": None,
+    "estimated_total": None,
+}
 
 class OcadoEmail:
     """Class for retrieved emails."""
@@ -85,16 +97,18 @@ class OcadoEmails:
 class OcadoOrder:
     """Class for Ocado orders."""
     def __init__(self,
-        order_number="",
-        delivery_datetime="",
-        delivery_end_datetime="",
-        edit_datetime="",
-        estimated_total=""
+        updated: datetime,
+        order_number: str,
+        delivery_datetime: datetime,
+        delivery_window= str,
+        edit_datetime= datetime,
+        estimated_total= float,
     ):
+        self.updated = updated
         self.order_number = order_number
         self.delivery_datetime = delivery_datetime
-        self.delivery_end_datetime = delivery_end_datetime
+        self.delivery_window = delivery_window
         self.edit_datetime = edit_datetime
         self.estimated_total = estimated_total
     def __str__(self):
-        return f'"order_number":{self.order_number}, "delivery_datetime":{self.delivery_datetime}, "delivery_end_datetime":{self.delivery_end_datetime}, "edit_datetime":{self.edit_datetime}, "estimated_total":{self.estimated_total}'
+        return f'"updated:{self.updated}, "order_number":{self.order_number}, "delivery_datetime":{self.delivery_datetime}, "delivery_end_datetime":{self.delivery_end_datetime}, "edit_datetime":{self.edit_datetime}, "estimated_total":{self.estimated_total}'
