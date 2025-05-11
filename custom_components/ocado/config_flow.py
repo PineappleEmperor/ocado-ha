@@ -58,22 +58,8 @@ OCADO_SETTINGS_SCHEMA = vol.Schema(
     }
 )
 
-# ----------------------------------------------------------------------------
-# Selectors described at
-# https://www.home-assistant.io/docs/blueprint/selectors/
-# ----------------------------------------------------------------------------
-# could include a selector for the imap integration and use that as a way to update more frequently..
-# STEP_SETTINGS_DATA_SCHEMA = vol.Schema(
-#     {
-#         vol.Required(CONF_SENSORS): selector(
-#             {"entity": {"filter": {"integration": "imap"}}}
-#         ),
-#         # Take note of translation key and entry in strings.json and translation files.
-#     }
-# )
 
-
-async def _validate_input(hass: HomeAssistant, data: dict[str, Any]) -> bool:
+async def _validate_input(hass: HomeAssistant, data: dict[str, Any]) -> dict[str, Any]:
     """Validate the user input allows us to connect."""
     try:
         _LOGGER.debug("Testing IMAP server with host: %s, port: %s", data[CONF_IMAP_SERVER], data[CONF_IMAP_PORT])
@@ -82,7 +68,7 @@ async def _validate_input(hass: HomeAssistant, data: dict[str, Any]) -> bool:
         raise CannotConnect from err
     try:
         _LOGGER.debug("Testing IMAP server login with email: %s", data[CONF_EMAIL])
-        await server.login(data[CONF_EMAIL], data[CONF_PASSWORD])
+        server.login(data[CONF_EMAIL], data[CONF_PASSWORD])
     except Exception as err:
         raise InvalidAuth from err
     try:
@@ -109,11 +95,6 @@ async def _validate_options(hass: HomeAssistant, data: dict[str, Any]) -> dict[s
     if data[CONF_IMAP_DAYS] < 7:
         raise ValueError(f"Number of days to fetch is too low, minimum is 7 {data[CONF_IMAP_DAYS]}")
     return {"title": f"Ocado Integration - {data[CONF_EMAIL]}:{data[CONF_IMAP_SERVER]}"}
-
-
-# async def validate_settings(hass: HomeAssistant, data: dict[str, Any]) -> bool:
-#     """Another validation method for our config steps."""
-#     return True
 
 
 class OcadoConfigFlowHandler(ConfigFlow, domain=DOMAIN):
@@ -147,8 +128,8 @@ class OcadoConfigFlowHandler(ConfigFlow, domain=DOMAIN):
         errors: dict[str, str] = {}
 
         if user_input is not None:
-            _LOGGER.debug("User input received: %s", user_input)
             # The form has been filled in and submitted, so process the data provided.
+            _LOGGER.debug("User input received: %s", user_input)
             try:                
                 info = await _validate_input(self.hass, user_input)
             except CannotConnect:
@@ -172,14 +153,15 @@ class OcadoConfigFlowHandler(ConfigFlow, domain=DOMAIN):
                 self._input_data = user_input
 
                 # Call the next step
-                return await self.async_step_settings()
+                # return await self.async_step_settings()
+                return self.async_create_entry(title=self._title, data=self._input_data)
 
         # Show initial form.
         return self.async_show_form(
             step_id="user",
             data_schema=OCADO_SETTINGS_SCHEMA,
             errors=errors,
-            last_step=False,  # Adding last_step True/False decides whether form shows Next or Submit buttons
+            last_step=True,  # Adding last_step True/False decides whether form shows Next or Submit buttons
         )
 
     async def async_step_settings(
@@ -189,11 +171,7 @@ class OcadoConfigFlowHandler(ConfigFlow, domain=DOMAIN):
 
         errors: dict[str, str] = {}
 
-        if user_input is not None:
-            # The form has been filled in and submitted, so process the data provided.
-            # if not await _validate_input(self.hass, user_input):
-            #     errors["base"] = "invalid_settings"
-
+        if self._input_data is not None:
             # if "base" not in errors:
             self._input_data.update(user_input)
             return self.async_create_entry(title=self._title, data=self._input_data)
@@ -263,9 +241,18 @@ class OcadoOptionsFlowHandler(OptionsFlow):
 
     async def async_step_intervals(self, user_input=None):
         """Handle menu intervals flow."""
+        
+        errors: dict[str, str] = {}
+        
         if user_input is not None:
+            _LOGGER.debug("User options received: %s", user_input)
             options = self.config_entry.options | user_input
-            return self.async_create_entry(title="", data=options)
+            try:
+                info = _validate_options(self.hass, user_input)
+            except ValueError:
+                errors["base"] = "value_error"
+            if "base" not in errors:
+                return self.async_create_entry(title="", data=options)
 
         data_schema = vol.Schema(
             {
@@ -281,35 +268,6 @@ class OcadoOptionsFlowHandler(OptionsFlow):
         )
 
         return self.async_show_form(step_id="intervals", data_schema=data_schema)
-
-    # async def async_step_option2(self, user_input=None):
-    #     """Handle menu option 2 flow.
-
-    #     In this option, we show how to use dynamic data in a selector.
-    #     """
-    #     if user_input is not None:
-    #         options = self.config_entry.options | user_input
-    #         return self.async_create_entry(title="", data=options)
-
-    #     coordinator: ExampleCoordinator = self.hass.data[DOMAIN][
-    #         self.config_entry.entry_id
-    #     ].coordinator
-    #     devices = coordinator.data
-    #     data_schema = vol.Schema(
-    #         {
-    #             vol.Optional(CONF_CHOOSE, default=devices[0]["device_name"]): selector(
-    #                 {
-    #                     "select": {
-    #                         "options": [device["device_name"] for device in devices],
-    #                         "mode": "dropdown",
-    #                         "sort": True,
-    #                     }
-    #                 }
-    #             ),
-    #         }
-    #     )
-
-    #     return self.async_show_form(step_id="option2", data_schema=data_schema)
 
 
 class CannotConnect(HomeAssistantError):

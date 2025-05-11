@@ -9,7 +9,8 @@
         "cannot_connect": "Failed to connect",
         "invalid_auth": "Invalid authentication",
         "invalid_settings": "Invalid settings",
-        "unknown": "Unexpected error"
+        "unknown": "Unexpected error",
+        "value_error": "Value Error"
       },
       "step": {
         "user": {
