@@ -13,26 +13,23 @@
       },
       "step": {
         "user": {
-          "title": "Multi Step Config - Step 1",
+          "title": "Ocado UK Configuration",
+          "description": "Set up the IMAP settings for your Ocado UK emails.",
           "data": {
-            "host": "Host",
+            "email": "IMAP email",
             "password": "Password",
-            "username": "Username"
-          }
-        },
-        "settings": {
-          "title": "Multi Step Config - Step 2",
-          "data": {
-            "sensors": "Sensor",
-            "choose": "Selector",
-            "minimum": "Minimum Value"
+            "imap_host": "IMAP server",
+            "imap_port": "IMAP server port",
+            "imap_folder": "Email account folder to use"
           }
         },
         "reconfigure": {
           "data": {
-            "host": "Host",
+            "email": "IMAP email",
             "password": "Password",
-            "username": "Username"
+            "imap_host": "IMAP server",
+            "imap_port": "IMAP server port",
+            "imap_folder": "Email account folder to use"
           }
         }
       }
@@ -40,36 +37,19 @@
     "options": {
       "step": {
         "init": {
-          "title": "Example2 Options",
-          "description": "Select which options to amend.",
+          "title": "Ocado UK Options",
+          "description": "Configure options.",
           "menu_options": {
-            "option1": "Options Set 1",
-            "option2": "Options Set 2"
+            "intervals": "Intervals"
           }
         },
-        "option1": {
-          "title": "Example2 Options",
-          "description": "Option Set 1",
+        "intervals": {
+          "title": "Interval Options",
+          "description": "Choose interval options.",
           "data": {
-            "scan_interval": "Scan Interval (seconds)",
-            "description": "My Description"
+            "scan_interval": "Scan Interval (seconds).",
+            "imap_days": "Number of days of emails to retrieve."
           }
-        },
-        "option2": {
-          "title": "Example2 Options",
-          "description": "Option Set 2",
-          "data": {
-            "chose": "Pick a device"
-          }
-        }
-      }
-    },
-    "selector": {
-      "example_selector": {
-        "options": {
-          "all": "All",
-          "light": "Light",
-          "switch": "Switch"
         }
       }
     }
