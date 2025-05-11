@@ -7,7 +7,7 @@
 [![HACS Action](https://github.com/PineappleEmperor/ocado-ha/actions/workflows/hacs_validate.yml/badge.svg?branch=main)](https://github.com/PineappleEmperor/ocado-ha/actions/workflows/hacs_validate.yml)
 [![Release](https://github.com/PineappleEmperor/ocado-ha/actions/workflows/semantic_release.yml/badge.svg?branch=main)](https://github.com/PineappleEmperor/ocado-ha/actions/workflows/semantic_release.yml)
 
-Ocado (UK) Integration for Home Assistant
+Ocado UK Integration for Home Assistant
 =====================================
 
 This is an unofficial Ocado integration for Home Assistant. This integration creates several sensors with information about your next delivery, and when you can edit your next delivery.

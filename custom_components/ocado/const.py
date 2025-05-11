@@ -3,31 +3,31 @@ from datetime import date, datetime
 
 DOMAIN = "ocado"
 
-OCADO_ADDRESS = "customerservices@ocado.com"
-OCADO_CANCELLATION_SUBJECT = "Order cancellation confirmation"
-OCADO_CONFIRMATION_SUBJECT = "Confirmation of your order"
-OCADO_CUTOFF_SUBJECT = "Don't miss the cut-off time for editing your order"
-OCADO_NEW_TOTAL_SUBJECT = "What you returned, and your new total"
-OCADO_RECEIPT_SUBJECT = "Your receipt for today's Ocado delivery"
+OCADO_ADDRESS =                 "customerservices@ocado.com"
+OCADO_CANCELLATION_SUBJECT =    "Order cancellation confirmation"
+OCADO_CONFIRMATION_SUBJECT =    "Confirmation of your order"
+OCADO_CUTOFF_SUBJECT =          "Don't miss the cut-off time for editing your order"
+OCADO_NEW_TOTAL_SUBJECT =       "What you returned, and your new total"
+OCADO_RECEIPT_SUBJECT =         "Your receipt for today's Ocado delivery"
 OCADO_SUBJECT_DICT = {
     OCADO_CANCELLATION_SUBJECT: "cancellation",
     OCADO_CONFIRMATION_SUBJECT: "confirmation",
-    OCADO_NEW_TOTAL_SUBJECT: "new_total",
-    OCADO_RECEIPT_SUBJECT: "receipt"
+    OCADO_NEW_TOTAL_SUBJECT:    "new_total",
+    OCADO_RECEIPT_SUBJECT:      "receipt"
 }
 
-CONF_IMAP_DAYS = 'imap_days'
-CONF_IMAP_FOLDER = 'imap_folder'
-CONF_IMAP_PORT = 'imap_port'
-CONF_IMAP_SERVER = 'imap_host'
-CONF_IMAP_SSL = 'imap_ssl'
+CONF_IMAP_DAYS =     'imap_days'
+CONF_IMAP_FOLDER =   'imap_folder'
+CONF_IMAP_PORT =     'imap_port'
+CONF_IMAP_SERVER =   'imap_host'
+CONF_IMAP_SSL =      'imap_ssl'
 CONF_SCAN_INTERVAL = 'scan_interval'
 
-DEFAULT_IMAP_DAYS = 31
-DEFAULT_IMAP_FOLDER = 'INBOX'
-DEFAULT_IMAP_PORT = 993
-DEFAULT_IMAP_SERVER = 'imap.gmail.com'
-DEFAULT_IMAP_SSL = 'ssl'
+DEFAULT_IMAP_DAYS =     31
+DEFAULT_IMAP_FOLDER =   'INBOX'
+DEFAULT_IMAP_PORT =     993
+DEFAULT_IMAP_SERVER =   'imap.gmail.com'
+DEFAULT_IMAP_SSL =      'ssl'
 DEFAULT_SCAN_INTERVAL = 600
 
 DEVICE_CLASS = "ocado_deliveries"
@@ -51,64 +51,82 @@ REGEX_EACH = REGEX_WEIGHT + r"\([\\u00a3|£]\d{1,2}.\d{2}\/EACH\)"
 REGEX_WEIGHT_QUANTITY_COST = REGEX_WEIGHT + r"\d\/\d\s?\d{1,2}.\d{1,2}"
 REGEX_WEIGHT_QUANTITY_EACH = REGEX_EACH + r"\s?\d\/\d{1,2}.?\d{1,2}?\s?\d{1,2}.\d{2}"
 
+DAYS = [
+    "mon",
+    "tue",
+    "wed",
+    "thu",
+    "fri",
+    "sat",
+    "sun",
+    "longer"
+]
+
 EMPTY_ATTRIBUTES = {
-    "order_number": None,
-    "delivery_date": None,
-    "delivery_window": None,
-    "edit_date": None,
-    "edit_time": None,
-    "estimated_total": None,
+    "order_number"          : None,
+    "delivery_date"         : None,
+    "delivery_window"       : None,
+    "edit_date"             : None,
+    "edit_time"             : None,
+    "estimated_total"       : None,
 }
 
 class OcadoEmail:
     """Class for retrieved emails."""
     def __init__(self,
-        message_id = None,
-        email_type = None,
-        date = None,
-        from_address = None,
-        subject = None,
-        body = None,
-        order_number = None,
+        message_id          = None,
+        email_type          = None,
+        date                = None,
+        from_address        = None,
+        subject             = None,
+        body                = None,
+        order_number        = None,
     ):
-        self.message_id = message_id
-        self.type = email_type
-        self.date = date
-        self.from_address = from_address
-        self.subject = subject
-        self.body = body
-        self.order_number = order_number
+        self.message_id     = message_id
+        self.type           = email_type
+        self.date           = date
+        self.from_address   = from_address
+        self.subject        = subject
+        self.body           = body
+        self.order_number   = order_number
 
 class OcadoEmails:
     """Class for all retrieved emails."""
     def __init__(self,
-        orders = None,
-        cancelled = None,
-        confirmations = None,
-        new_totals = None,
-        receipts = None,
+        orders              = None,
+        cancelled           = None,
+        confirmations       = None,
+        new_totals          = None,
+        receipts            = None,
     ):
-        self.orders = orders
-        self.cancelled = cancelled
-        self.confirmations = confirmations
-        self.new_totals = new_totals
-        self.receipts = receipts
+        self.orders         = orders
+        self.cancelled      = cancelled
+        self.confirmations  = confirmations
+        self.new_totals     = new_totals
+        self.receipts       = receipts
 
 class OcadoOrder:
     """Class for Ocado orders."""
     def __init__(self,
-        updated: datetime,
-        order_number: str,
-        delivery_datetime: datetime,
-        delivery_window= str,
-        edit_datetime= datetime,
-        estimated_total= float,
+        updated                     : datetime | None,
+        order_number                : str      | None,
+        delivery_datetime           : datetime | None,
+        delivery_window_end         : str      | None,
+        edit_datetime               : datetime | None,
+        estimated_total             : float    | None,
     ):
-        self.updated = updated
-        self.order_number = order_number
-        self.delivery_datetime = delivery_datetime
-        self.delivery_window = delivery_window
-        self.edit_datetime = edit_datetime
-        self.estimated_total = estimated_total
-    def __str__(self):
-        return f'"updated:{self.updated}, "order_number":{self.order_number}, "delivery_datetime":{self.delivery_datetime}, "delivery_end_datetime":{self.delivery_end_datetime}, "edit_datetime":{self.edit_datetime}, "estimated_total":{self.estimated_total}'
+        self.updated                = updated
+        self.order_number           = order_number
+        self.delivery_datetime      = delivery_datetime
+        self.delivery_window_end    = delivery_window_end
+        self.edit_datetime          = edit_datetime
+        self.estimated_total        = estimated_total
+
+EMPTY_ORDER = OcadoOrder(
+        updated             = datetime.now(),
+        order_number        = None,
+        delivery_datetime   = None,
+        delivery_window_end = None,
+        edit_datetime       = None,
+        estimated_total     = None,
+    )

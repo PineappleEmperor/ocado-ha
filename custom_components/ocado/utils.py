@@ -6,6 +6,7 @@ from email.policy import default as default_policy
 from imaplib import IMAP4_SSL as imap
 import logging
 import re
+import math
 
 from dateutil.parser import parse
 
@@ -22,6 +23,7 @@ from .const import(
     OcadoEmail,
     OcadoEmails,
     OcadoOrder,
+    EMPTY_ORDER,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -39,10 +41,10 @@ def get_email_from_address(message: str) -> str:
     raise ValueError(f"No from address was found in email {message.get('Subject')}")
 
 
-def get_email_from_date(email_date_raw: str) -> date:
+def get_email_from_datetime(email_date_raw: str) -> date:
     """Parse the date of the email from the given string."""
     email_datetime = parse(email_date_raw, fuzzy=True, dayfirst=True)
-    return email_datetime.date()
+    return email_datetime
 
 
 def get_estimated_total(message: str) -> str:
@@ -113,13 +115,14 @@ def capitalise(text: str) -> str:
 
 
 # reversed so that we start with the newest message and break on it
-def email_triage(imap_account_email: str,imap_account_password: str,imap_server: str, imap_port: int, imap_folder: str, imap_days: int) -> OcadoEmails:
+def email_triage(self) -> OcadoEmails:
+    # imap_account_email: str,imap_account_password: str,imap_server: str, imap_port: int, imap_folder: str, imap_days: int) -> OcadoEmails:
     """Access the IMAP inbox and retrieve all the relevant Ocado UK emails from the last month."""
     today = date.today()
-    server = imap(host = imap_server, port = imap_port, timeout= 30)
-    server.login(imap_account_email, imap_account_password)
-    server.select(imap_folder, readonly=True)
-    flags = fr'SINCE "{(today - timedelta(days=imap_days)).strftime("%d-%b-%Y")}" FROM "{OCADO_ADDRESS}" NOT SUBJECT "{OCADO_CUTOFF_SUBJECT}"'
+    server = imap(host = self.imap_host, port = self.imap_port, timeout= 30)
+    server.login(self.email_address, self.password)
+    server.select(self.imap_folder, readonly=True)
+    flags = fr'SINCE "{(today - timedelta(days=self.imap_days)).strftime("%d-%b-%Y")}" FROM "{OCADO_ADDRESS}" NOT SUBJECT "{OCADO_CUTOFF_SUBJECT}"'
     result, message_ids = server.search(None,flags)
     if result != "OK":
         _LOGGER.error("Could not connect to inbox.")
@@ -173,7 +176,7 @@ def _ocado_email_typer(subject: str) -> str:
 def _parse_email(message_id: bytes, message_data: bytes) -> OcadoEmail:
     """Given message data, return RetrievedEmail object."""
     email_message = email.message_from_bytes(message_data, policy=default_policy)
-    email_date = get_email_from_date(email_message.get("Date"))
+    email_date = get_email_from_datetime(email_message.get("Date"))
     email_from_address = get_email_from_address(email_message)
     email_subject = email_message.get("Subject")
     email_body = ""
@@ -207,11 +210,12 @@ def order_parse(ocado_email: OcadoEmail) -> OcadoOrder:
     message = ocado_email.body
     delivery_datetime, delivery_window_end = get_delivery_datetimes(message)
     order = OcadoOrder(
-        order_number = ocado_email.order_number,
-        delivery_datetime = delivery_datetime,
+        updated             = ocado_email.date,
+        order_number        = ocado_email.order_number,
+        delivery_datetime   = delivery_datetime,
         delivery_window_end = delivery_window_end,
-        edit_datetime = get_edit_datetime(message),
-        estimated_total = get_estimated_total(message),
+        edit_datetime       = get_edit_datetime(message),
+        estimated_total     = get_estimated_total(message),
     )
     return order
 
@@ -233,3 +237,26 @@ def get_window(delivery_datetime: datetime, delivery_window_end: datetime) -> st
     start = delivery_datetime.strftime("%H:%M")
     end = delivery_window_end.strftime("%H:%M")
     return start + " - " + end
+
+
+def sort_orders(orders: list[dict]) -> list[dict]:
+    """Sorts the list of orders and returns the next and upcoming orders."""
+    # First, sort by the date, but note that the first order could be in the distant future.
+    orders.sort(key=lambda item:item['delivery_datetime'])
+    # so do a for loop, if delivery_datetime is >= today, then do a diff and check against the current diff?
+    # There's probably a better way of doing this..
+    today = date.today()
+    diff = math.inf
+    next = EMPTY_ORDER
+    upcoming = EMPTY_ORDER
+    for order in orders:
+        order_date = order.get("delivery_date")
+        if order_date < today:
+            return next, upcoming
+        order_diff = (order_date - today).days
+        # Could have more than one order in a day.. Surely not?!
+        if order_diff < diff:
+            upcoming = next
+            next = order
+            diff = order_diff
+    return next, upcoming

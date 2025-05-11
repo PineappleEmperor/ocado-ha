@@ -10,8 +10,8 @@ from custom_components.ocado.coordinator import OcadoUpdateCoordinator
 fixtures_path = Path(__file__).parent / "fixtures"
 
 ## No Data
-with open(fixtures_path / "none.json") as file:
-    no_data = json.load(file)
+# with open(fixtures_path / "none.json") as file:
+#     no_data = json.load(file)
 
 # @pytest.mark.asyncio
 # async def test_x_sensor():
