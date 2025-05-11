@@ -1,9 +1,6 @@
 """The Ocado integration."""
 
 import logging
-from typing import Any, Callable
-
-from dataclasses import dataclass
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
@@ -11,9 +8,10 @@ from homeassistant.core import HomeAssistant
 
 from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers.device_registry import DeviceEntry
-from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
+from homeassistant.helpers.update_coordinator import UpdateFailed
 
-from homeassistant.helpers import config_validation as cv, device_registry as dr
+from homeassistant.helpers import config_validation as cv
+# , device_registry as dr
 
 from .const import DOMAIN
 from .coordinator import OcadoUpdateCoordinator
@@ -26,17 +24,50 @@ PLATFORMS: list[Platform] = [
 
 CONFIG_SCHEMA = cv.empty_config_schema(DOMAIN)
 
-type OcadoConfigEntry = ConfigEntry[RuntimeData]
 
-@dataclass
-class RuntimeData:
-    """Class to hold your data."""
+async def async_setup(hass: HomeAssistant, config: dict) -> bool:
+    """Set up the Ocado component."""
+    _LOGGER.debug("async_setup called with config: %s", config)
+    try:
+        hass.data.setdefault(DOMAIN, {})
+        _LOGGER.debug("hass.data[DOMAIN] initialized: %s", hass.data[DOMAIN])
 
-    coordinator: DataUpdateCoordinator
-    cancel_update_listener: Callable
+        async def handle_manual_refresh(call):
+            """Refresh all Ocado sensors for a given config entry."""
+            _LOGGER.debug("manual_refresh service called with data: %s", call.data)
+            entry_id = call.data.get("entry_id")
+
+            if not entry_id:
+                _LOGGER.error("[Ocado-ha] No entry_id was passed to ocado-ha.manual_refresh service.")
+                return
+
+            if entry_id not in hass.data[DOMAIN]:
+                _LOGGER.error("[Ocado-ha] No config entry found for entry_id: %s", entry_id)
+                return
+
+            coordinator = hass.data[DOMAIN][entry_id].get("coordinator")
+            if not coordinator:
+                _LOGGER.error("[Ocado-ha] Coordinator is missing for entry_id: %s",entry_id)
+                return
+
+            _LOGGER.debug("[Ocado-ha] Requesting a manual refresh via coordinator")
+            await coordinator.async_request_refresh()
+            _LOGGER.debug("[Ocado-ha] Manual refresh completed")
+
+        # Register a service named `ocado_ha.manual_refresh`
+        _LOGGER.debug("[Ocado-ha] Registering manual_refresh service")
+        hass.services.async_register(DOMAIN, "manual_refresh", handle_manual_refresh)
+        _LOGGER.debug("[Ocado-ha] manual_refresh service registered successfully")
+
+        _LOGGER.info("[Ocado-ha] async_setup completed without errors.")
+        return True
+
+    except Exception as error:
+        _LOGGER.exception("Unexpected error in async_setup: %s", error)
+        return False
 
 
-async def async_setup_entry(hass: HomeAssistant, config_entry: OcadoConfigEntry) -> bool:
+async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> bool:
     """Set up the Ocado integration."""
     _LOGGER.info("Setting up the Ocado integration")
 
@@ -46,30 +77,40 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: OcadoConfigEntry)
             f"Config entry {config_entry.title} ({config_entry.entry_id}) for {DOMAIN} has already been setup!"
         )
 
-    # Setup the coordinator
-    coordinator = OcadoUpdateCoordinator(hass, config_entry)
-    await coordinator.async_config_entry_first_refresh()
+    try:
+        # Setup the coordinator and perform the first refresh
+        coordinator = OcadoUpdateCoordinator(hass, config_entry)
+        _LOGGER.debug("OcadoUpdateCoordinator initialised.")
+        await coordinator.async_config_entry_first_refresh()
 
-    if not coordinator.data:
-        raise ConfigEntryNotReady
+        if not coordinator.data:
+            raise ConfigEntryNotReady
+        _LOGGER.info(
+            f"Initial data fetched successfully for entry_id={config_entry.entry_id}"
+        )
 
-    cancel_update_listener = config_entry.async_on_unload(
-        config_entry.add_update_listener(_async_update_listener)
-    )
+        # Store the coordinator
+        hass.data[DOMAIN][config_entry.entry_id] = {"coordinator": coordinator}
+        _LOGGER.debug(
+            f"Coordinator stored in hass.data under entry_id={config_entry.entry_id}"
+        )
 
-    config_entry.runtime_data = RuntimeData(coordinator, cancel_update_listener)
+        # Forward the setup to all platforms
+        _LOGGER.debug(f"Forwarding setup to platforms: {PLATFORMS}")
+        await hass.config_entries.async_forward_entry_setups(config_entry, PLATFORMS)
+        _LOGGER.info(
+            f"async_setup_entry finished for entry_id={config_entry.entry_id}"
+        )
+        return True
+    
+    except UpdateFailed as error:
+        _LOGGER.error(f"Unable to fetch initial data: {error}")
+        raise ConfigEntryNotReady from error
 
-    await hass.config_entries.async_forward_entry_setups(config_entry, PLATFORMS)
 
-    # Store integration data in hass.data
-    hass.data[DOMAIN] = {}
-
-    return True
-
-
-async def _async_update_listener(hass: HomeAssistant, config_entry: OcadoConfigEntry):
-    """Handle config options update."""
-    await hass.config_entries.async_reload(config_entry.entry_id)
+# async def _async_update_listener(hass: HomeAssistant, config_entry: ConfigEntry):
+#     """Handle config options update."""
+#     await hass.config_entries.async_reload(config_entry.entry_id)
 
 # async def async_remove_config_entry_device(
 #     hass: HomeAssistant, config_entry: OcadoConfigEntry, device_entry: DeviceEntry
@@ -77,7 +118,8 @@ async def _async_update_listener(hass: HomeAssistant, config_entry: OcadoConfigE
 #     """Delete device if selected from UI."""
 #     return True
 
-async def async_unload_entry(hass: HomeAssistant, config_entry: OcadoConfigEntry) -> bool:
+
+async def async_unload_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> bool:
     """Unload a config entry."""
 
     # # Unload services
@@ -85,7 +127,6 @@ async def async_unload_entry(hass: HomeAssistant, config_entry: OcadoConfigEntry
     #     hass.services.async_remove(DOMAIN, service)
 
     # Unload platforms and return result
-    # return await hass.config_entries.async_unload_platforms(config_entry, PLATFORMS)
     if DOMAIN in hass.data and config_entry.entry_id in hass.data[DOMAIN]:
         platforms = hass.data[DOMAIN][config_entry.entry_id].get("platforms", [])
         unload_ok = await hass.config_entries.async_unload_platforms(config_entry, platforms)
@@ -101,6 +142,6 @@ async def async_unload_entry(hass: HomeAssistant, config_entry: OcadoConfigEntry
 
     return False
 
-async def async_update_entry(hass: HomeAssistant, config_entry: OcadoConfigEntry):
+async def async_update_entry(hass: HomeAssistant, config_entry: ConfigEntry):
     """Reload Ocado component when options changed."""
     await hass.config_entries.async_reload(config_entry.entry_id)
