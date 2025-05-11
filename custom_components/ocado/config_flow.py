@@ -80,8 +80,8 @@ async def _validate_input(hass: HomeAssistant, data: dict[str, Any]) -> dict[str
     except Exception as err:
         raise CannotConnect from err
     try:        
-        await server.login(CONF_EMAIL, CONF_PASSWORD)
-        server.select(CONF_IMAP_FOLDER, readonly=True)
+        await server.login(data[CONF_EMAIL], data[CONF_PASSWORD])
+        server.select(data[CONF_IMAP_FOLDER], readonly=True)
         check = server.check()
         server.close()
         server.logout()
