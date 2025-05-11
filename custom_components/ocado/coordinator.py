@@ -8,11 +8,11 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import (
     CONF_EMAIL,
     CONF_PASSWORD,
+    CONF_SCAN_INTERVAL,
 )
 from .const import (
     OCADO_ADDRESS,
     OCADO_CONFIRMATION_SUBJECT,
-    CONF_SCAN_INTERVAL,
     CONF_IMAP_SERVER,
     CONF_IMAP_PORT,
     CONF_IMAP_FOLDER,
