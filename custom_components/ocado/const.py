@@ -21,7 +21,6 @@ CONF_IMAP_FOLDER =   'imap_folder'
 CONF_IMAP_PORT =     'imap_port'
 CONF_IMAP_SERVER =   'imap_host'
 CONF_IMAP_SSL =      'imap_ssl'
-CONF_SCAN_INTERVAL = 'scan_interval'
 
 DEFAULT_IMAP_DAYS =     31
 DEFAULT_IMAP_FOLDER =   'INBOX'
@@ -36,6 +35,9 @@ EMAIL_ATTR_FROM = 'from'
 EMAIL_ATTR_SUBJECT = 'subject'
 EMAIL_ATTR_BODY = 'body'
 EMAIL_ATTR_DATE = 'date'
+
+MIN_IMAP_DAYS = 7
+MIN_SCAN_INTERVAL = 60
 
 REGEX_DATE = r"3[01]|[12][0-9]|0?[1-9]"
 REGEX_DAY_FULL = r"Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday"
