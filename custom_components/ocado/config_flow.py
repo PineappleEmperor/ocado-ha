@@ -76,21 +76,28 @@ OCADO_SETTINGS_SCHEMA = vol.Schema(
 async def _validate_input(hass: HomeAssistant, data: dict[str, Any]) -> bool:
     """Validate the user input allows us to connect."""
     try:
+        _LOGGER.debug("Testing IMAP server with host: %s, port: %s", data[CONF_IMAP_SERVER], data[CONF_IMAP_PORT])
         server = imap(host = data[CONF_IMAP_SERVER], port = data[CONF_IMAP_PORT], timeout = 30)
     except Exception as err:
         raise CannotConnect from err
-    try:        
+    try:
+        _LOGGER.debug("Testing IMAP server login with email: %s", data[CONF_EMAIL])
         await server.login(data[CONF_EMAIL], data[CONF_PASSWORD])
     except Exception as err:
         raise InvalidAuth from err
     try:
+        _LOGGER.debug("Selecting IMAP folder: %s", data[CONF_IMAP_FOLDER])
         server.select(data[CONF_IMAP_FOLDER], readonly=True)
+        _LOGGER.debug("Requesting IMAP server check")
         check = server.check()
         server.close()
         server.logout()
     except Exception:
+        _LOGGER.exception("Failed to select imap folder or check")
         raise Exception
+    _LOGGER.debug("Checking the check: %s", check)
     if check != ('OK', [b'Success']):
+        _LOGGER.exception("Check failed")
         raise Exception
     return {"title": f"Ocado Integration - {data[CONF_EMAIL]}:{data[CONF_IMAP_SERVER]}"}
 
