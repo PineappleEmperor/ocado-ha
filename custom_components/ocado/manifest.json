@@ -1,5 +1,5 @@
 {
-    "domain": "ocado",
+    "domain": "ocado-ha",
     "name": "Ocado",
     "codeowners": [
       "@PineappleEmperor"
@@ -14,5 +14,5 @@
       "python-dateutil==2.9.0"
     ],
     "single_config_entry": true,    
-    "version": "0.0.0"
+    "version": "0.0.5"
   }
