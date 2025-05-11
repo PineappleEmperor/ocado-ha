@@ -51,7 +51,7 @@ OCADO_SETTINGS_SCHEMA = vol.Schema(
             CONF_EMAIL,
             description={"suggested_value": ""}
             ): cv.string,
-        vol.Required(CONF_PASSWORD, description={"suggested_value": "test"}): cv.string,
+        vol.Required(CONF_PASSWORD, description={"suggested_value": "supersecretstring"}): cv.string,
         vol.Required(CONF_IMAP_SERVER, default=DEFAULT_IMAP_SERVER, description={"suggested_value": DEFAULT_IMAP_SERVER}): cv.string,
         vol.Required(CONF_IMAP_PORT, default=DEFAULT_IMAP_PORT, description={"suggested_value": DEFAULT_IMAP_PORT}): cv.positive_int,
         vol.Required(CONF_IMAP_FOLDER, default=DEFAULT_IMAP_FOLDER, description={"suggested_value": DEFAULT_IMAP_FOLDER}): cv.string,
@@ -73,7 +73,7 @@ OCADO_SETTINGS_SCHEMA = vol.Schema(
 # )
 
 
-async def _validate_input(hass: HomeAssistant, data: dict[str, Any]) -> dict[str, Any]:
+async def _validate_input(hass: HomeAssistant, data: dict[str, Any]) -> bool:
     """Validate the user input allows us to connect."""
     try:
         server = imap(host = data[CONF_IMAP_SERVER], port = data[CONF_IMAP_PORT], timeout = 30)
@@ -81,14 +81,18 @@ async def _validate_input(hass: HomeAssistant, data: dict[str, Any]) -> dict[str
         raise CannotConnect from err
     try:        
         await server.login(data[CONF_EMAIL], data[CONF_PASSWORD])
+    except Exception as err:
+        raise InvalidAuth from err
+    try:
         server.select(data[CONF_IMAP_FOLDER], readonly=True)
         check = server.check()
         server.close()
         server.logout()
-    except Exception as err:
-        raise InvalidAuth from err
+    except Exception:
+        raise Exception
     if check != ('OK', [b'Success']):
         raise Exception
+    return {"title": f"Ocado Integration - {data[CONF_EMAIL]}:{data[CONF_IMAP_SERVER]}"}
 
 
 async def _validate_options(hass: HomeAssistant, data: dict[str, Any]) -> dict[str, Any]:
@@ -209,7 +213,7 @@ class OcadoConfigFlowHandler(ConfigFlow, domain=DOMAIN):
         if user_input is not None:
             _LOGGER.debug("Reconfigure user input: %s", user_input)
             try:
-                await _validate_input(self.hass, user_input)
+                info = await _validate_input(self.hass, user_input)
             except CannotConnect:
                 errors["base"] = "cannot_connect"
             except InvalidAuth:

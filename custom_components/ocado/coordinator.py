@@ -11,12 +11,9 @@ from homeassistant.const import (
     CONF_SCAN_INTERVAL,
 )
 from .const import (
-    OCADO_ADDRESS,
-    OCADO_CONFIRMATION_SUBJECT,
     CONF_IMAP_SERVER,
     CONF_IMAP_PORT,
     CONF_IMAP_FOLDER,
-    CONF_IMAP_SSL,
     CONF_IMAP_DAYS,
     DEFAULT_SCAN_INTERVAL,
     DEFAULT_IMAP_DAYS
@@ -27,12 +24,11 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, Upda
 from .utils import (
     email_triage,
     order_parse,
-    get_window,
     sort_orders
 )
 
 _LOGGER = logging.getLogger(__name__)
-type OcadoConfigEntry = ConfigEntry(OcadoUpdateCoordinator)
+# type OcadoConfigEntry = ConfigEntry(OcadoUpdateCoordinator)
 
 
 class OcadoUpdateCoordinator(DataUpdateCoordinator):
@@ -48,8 +44,6 @@ class OcadoUpdateCoordinator(DataUpdateCoordinator):
         self.imap_host      = config_entry.data[CONF_IMAP_SERVER]
         self.imap_port      = config_entry.data[CONF_IMAP_PORT]
         self.imap_folder    = config_entry.data[CONF_IMAP_FOLDER]
-        # self.imap_ssl     = config_entry.data[CONF_IMAP_SSL]
-        # self.imap_days    = config_entry.data[CONF_IMAP_DAYS]
                 
         # Set variables from options
         self.scan_interval  = config_entry.options.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)
