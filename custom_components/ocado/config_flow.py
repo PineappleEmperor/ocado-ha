@@ -116,7 +116,7 @@ class OcadoConfigFlowHandler(ConfigFlow, domain=DOMAIN):
 
     @staticmethod
     @callback
-    def async_get_options_flow(config_entry):
+    def async_get_options_flow(config_entry: ConfigEntry) -> OcadoOptionsFlowHandler:
         """Get the options flow for this handler."""
         return OcadoOptionsFlowHandler(config_entry)
 
@@ -231,30 +231,21 @@ class OcadoOptionsFlowHandler(OptionsFlow):
         self.config_entry = config_entry
         self.options = dict(config_entry.options)
 
-    async def async_step_init(self, user_input=None):
+    async def async_step_init(self, user_input: dict[str, Any] | None = None):
         """Handle options flow."""
 
-        return self.async_show_menu(
-            step_id="init",
-            menu_options=["intervals"],
-        )
-
-    async def async_step_intervals(self, user_input=None):
-        """Handle menu intervals flow."""
-        
         errors: dict[str, str] = {}
         
         if user_input is not None:
-            _LOGGER.debug("User options received: %s", user_input)
-            options = self.config_entry.options | user_input
+            _LOGGER.debug("User options received: %s", user_input)            
             try:
                 info = _validate_options(self.hass, user_input)
             except ValueError:
                 errors["base"] = "value_error"
             if "base" not in errors:
-                return self.async_create_entry(title="", data=options)
+                return self.async_create_entry(data=user_input)
 
-        data_schema = vol.Schema(
+        OCADO_OPTIONS_SCHEMA = vol.Schema(
             {
                 vol.Optional(
                     CONF_SCAN_INTERVAL,
@@ -267,7 +258,13 @@ class OcadoOptionsFlowHandler(OptionsFlow):
             }
         )
 
-        return self.async_show_form(step_id="intervals", data_schema=data_schema)
+        return self.async_show_form(
+            step_id="init",
+            data_schema=self.add_suggested_values_to_schema(
+                OCADO_OPTIONS_SCHEMA,
+                self.config_entry.options
+            ),
+        )
 
 
 class CannotConnect(HomeAssistantError):

@@ -108,9 +108,9 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> b
         raise ConfigEntryNotReady from error
 
 
-# async def _async_update_listener(hass: HomeAssistant, config_entry: ConfigEntry):
-#     """Handle config options update."""
-#     await hass.config_entries.async_reload(config_entry.entry_id)
+async def update_listener(hass: HomeAssistant, config_entry: ConfigEntry):
+    """Handle config options update."""
+    await hass.config_entries.async_reload(config_entry.entry_id)
 
 # async def async_remove_config_entry_device(
 #     hass: HomeAssistant, config_entry: OcadoConfigEntry, device_entry: DeviceEntry
