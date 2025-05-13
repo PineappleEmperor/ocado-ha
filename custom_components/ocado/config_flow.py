@@ -82,7 +82,7 @@ async def _validate_input(hass: HomeAssistant, data: dict[str, Any]) -> dict[str
         _LOGGER.exception("Failed to select imap folder or check")
         raise Exception
     _LOGGER.debug("Checking the check: %s", check)
-    if check != ('OK', [b'Success']):
+    if not check or check[0] != 'OK':
         _LOGGER.exception("Check failed")
         raise Exception
     return {"title": f"Ocado Integration - {data[CONF_EMAIL]}:{data[CONF_IMAP_SERVER]}"}
