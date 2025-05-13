@@ -25,46 +25,44 @@ PLATFORMS: list[Platform] = [
 CONFIG_SCHEMA = cv.empty_config_schema(DOMAIN)
 
 
-async def async_setup(hass: HomeAssistant, config: dict) -> bool:
+async def async_setup(hass: HomeAssistant, config_entry: dict) -> bool:
     """Set up the Ocado component."""
-    _LOGGER.debug("async_setup called with config: %s", config)
+    _LOGGER.debug("async_setup called")
     try:
         hass.data.setdefault(DOMAIN, {})
         _LOGGER.debug("hass.data[DOMAIN] initialized: %s", hass.data[DOMAIN])
-
-        async def handle_manual_refresh(call):
-            """Refresh all Ocado sensors for a given config entry."""
-            _LOGGER.debug("manual_refresh service called with data: %s", call.data)
-            entry_id = call.data.get("entry_id")
-
-            if not entry_id:
-                _LOGGER.error("[Ocado-ha] No entry_id was passed to ocado-ha.manual_refresh service.")
-                return
-
-            if entry_id not in hass.data[DOMAIN]:
-                _LOGGER.error("[Ocado-ha] No config entry found for entry_id: %s", entry_id)
-                return
-
-            coordinator = hass.data[DOMAIN][entry_id].get("coordinator")
-            if not coordinator:
-                _LOGGER.error("[Ocado-ha] Coordinator is missing for entry_id: %s",entry_id)
-                return
-
-            _LOGGER.debug("[Ocado-ha] Requesting a manual refresh via coordinator")
-            await coordinator.async_request_refresh()
-            _LOGGER.debug("[Ocado-ha] Manual refresh completed")
-
-        # Register a service named `ocado_ha.manual_refresh`
-        _LOGGER.debug("[Ocado-ha] Registering manual_refresh service")
-        hass.services.async_register(DOMAIN, "manual_refresh", handle_manual_refresh)
-        _LOGGER.debug("[Ocado-ha] manual_refresh service registered successfully")
-
-        _LOGGER.info("[Ocado-ha] async_setup completed without errors.")
-        return True
-
     except Exception as error:
         _LOGGER.exception("Unexpected error in async_setup: %s", error)
         return False
+    _LOGGER.info("[Ocado-ha] async_setup completed without errors.")
+    return True
+
+        # async def handle_manual_refresh(call):
+        #     """Refresh all Ocado sensors for a given config entry."""
+        #     _LOGGER.debug("manual_refresh service called with data: %s", call.data)
+        #     entry_id = call.data.get("entry_id")
+
+        #     if not entry_id:
+        #         _LOGGER.error("[Ocado-ha] No entry_id was passed to ocado-ha.manual_refresh service.")
+        #         return
+
+        #     if entry_id not in hass.data[DOMAIN]:
+        #         _LOGGER.error("[Ocado-ha] No config entry found for entry_id: %s", entry_id)
+        #         return
+
+        #     coordinator = hass.data[DOMAIN][entry_id].get("coordinator")
+        #     if not coordinator:
+        #         _LOGGER.error("[Ocado-ha] Coordinator is missing for entry_id: %s",entry_id)
+        #         return
+
+        #     _LOGGER.debug("[Ocado-ha] Requesting a manual refresh via coordinator")
+        #     await coordinator.async_request_refresh()
+        #     _LOGGER.debug("[Ocado-ha] Manual refresh completed")
+
+        # # Register a service named `ocado_ha.manual_refresh`
+        # _LOGGER.debug("[Ocado-ha] Registering manual_refresh service")
+        # hass.services.async_register(DOMAIN, "manual_refresh", handle_manual_refresh)
+        # _LOGGER.debug("[Ocado-ha] manual_refresh service registered successfully")
 
 
 async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> bool:
@@ -104,7 +102,7 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> b
         return True
     
     except UpdateFailed as error:
-        _LOGGER.error(f"Unable to fetch initial data: {error}")
+        _LOGGER.error("Unable to fetch initial data: %s", error)
         raise ConfigEntryNotReady from error
 
 

@@ -46,8 +46,11 @@ class OcadoUpdateCoordinator(DataUpdateCoordinator):
         self.imap_folder    = config_entry.data[CONF_IMAP_FOLDER]
                 
         # Set variables from options
-        self.scan_interval  = config_entry.options.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)
-        self.imap_days      = config_entry.options.get(CONF_IMAP_DAYS, DEFAULT_IMAP_DAYS)
+        # Set variables from options
+        # self.scan_interval  = config_entry.options.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)
+        # self.imap_days      = config_entry.options.get(CONF_IMAP_DAYS, DEFAULT_IMAP_DAYS)
+        self.scan_interval = DEFAULT_SCAN_INTERVAL
+        self.imap_days = DEFAULT_IMAP_DAYS
 
         super().__init__(
             hass,

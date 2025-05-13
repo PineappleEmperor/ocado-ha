@@ -51,10 +51,25 @@ OCADO_SETTINGS_SCHEMA = vol.Schema(
             CONF_EMAIL,
             description={"suggested_value": ""}
             ): cv.string,
-        vol.Required(CONF_PASSWORD, description={"suggested_value": "supersecretstring"}): cv.string,
-        vol.Required(CONF_IMAP_SERVER, default=DEFAULT_IMAP_SERVER, description={"suggested_value": DEFAULT_IMAP_SERVER}): cv.string,
-        vol.Required(CONF_IMAP_PORT, default=DEFAULT_IMAP_PORT, description={"suggested_value": DEFAULT_IMAP_PORT}): cv.positive_int,
-        vol.Required(CONF_IMAP_FOLDER, default=DEFAULT_IMAP_FOLDER, description={"suggested_value": DEFAULT_IMAP_FOLDER}): cv.string,
+        vol.Required(
+            CONF_PASSWORD,
+            description={"suggested_value": "supersecretstring"}
+            ): cv.string,
+        vol.Required(
+            CONF_IMAP_SERVER,
+            default=DEFAULT_IMAP_SERVER,
+            description={"suggested_value": DEFAULT_IMAP_SERVER}
+            ): cv.string,
+        vol.Required(
+            CONF_IMAP_PORT,
+            default=DEFAULT_IMAP_PORT,
+            description={"suggested_value": DEFAULT_IMAP_PORT}
+            ): cv.positive_int,
+        vol.Required(
+            CONF_IMAP_FOLDER,
+            default=DEFAULT_IMAP_FOLDER,
+            description={"suggested_value": DEFAULT_IMAP_FOLDER}
+            ): cv.string,
     }
 )
 
@@ -144,11 +159,17 @@ class OcadoConfigFlowHandler(ConfigFlow, domain=DOMAIN):
             if "base" not in errors:
                 # Validation was successful, so proceed to the next step.
                 # Set the unique ID
-                await self.async_set_unique_id(info.get("title"))
+                try:
+                    title = info.get("title")
+                except ValueError:
+                    _LOGGER.error("Cannot get title from info")
+                    raise ValueError
+                _LOGGER.debug("Setting unique ID")
+                await self.async_set_unique_id(title)
                 self._abort_if_unique_id_configured()
 
                 # Set our title variable here for use later
-                self._title = info.get("title")
+                self._title = title
                 # save the input data for use later
                 self._input_data = user_input
 

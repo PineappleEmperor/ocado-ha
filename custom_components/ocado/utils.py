@@ -31,14 +31,13 @@ _LOGGER = logging.getLogger(__name__)
 
 def get_email_from_address(message: str) -> str:
     """Parse the originating from address and return a lower case string."""    
-    message_from = message.get('From')
-    message_split = message_from.split('<')
+    message_split = message.split('<')
     if len(message_split)==2:
         return message_split[1][:-1].lower()
     if len(message_split)==1:
-        return message_from.lower()
-    _LOGGER.error("No from address was found in email %s", message.get('Subject'))
-    raise ValueError(f"No from address was found in email {message.get('Subject')}")
+        return message_split.lower()
+    _LOGGER.error("No from address was found in email.")
+    raise ValueError("No from address was found in email.")
 
 
 def get_email_from_datetime(email_date_raw: str) -> date:
@@ -177,7 +176,7 @@ def _parse_email(message_id: bytes, message_data: bytes) -> OcadoEmail:
     """Given message data, return RetrievedEmail object."""
     email_message = email.message_from_bytes(message_data, policy=default_policy)
     email_date = get_email_from_datetime(email_message.get("Date"))
-    email_from_address = get_email_from_address(email_message)
+    email_from_address = get_email_from_address(email_message.get("From"))
     email_subject = email_message.get("Subject")
     email_body = ""
     # multipart will return true if there are attachments, text, html versions of the body, etc.
