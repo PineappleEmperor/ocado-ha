@@ -10,7 +10,7 @@ from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers.device_registry import DeviceEntry
 from homeassistant.helpers.update_coordinator import UpdateFailed
 
-from homeassistant.helpers import config_validation as cv
+from homeassistant.helpers import config_validation as cv, device_registry as dr
 # , device_registry as dr
 
 from .const import DOMAIN
@@ -29,12 +29,12 @@ async def async_setup(hass: HomeAssistant, config_entry: dict) -> bool:
     """Set up the Ocado component."""
     _LOGGER.debug("async_setup called")
     try:
-        hass.data.setdefault(DOMAIN, {})
-        _LOGGER.debug("hass.data[DOMAIN] initialized: %s", hass.data[DOMAIN])
+        hass.data[DOMAIN] = {}
+        _LOGGER.debug("hass.data[%s] initialized", DOMAIN)
     except Exception as error:
         _LOGGER.exception("Unexpected error in async_setup: %s", error)
         return False
-    _LOGGER.info("[Ocado-ha] async_setup completed without errors.")
+    _LOGGER.info("[%s] async_setup completed without errors.", DOMAIN)
     return True
 
         # async def handle_manual_refresh(call):
@@ -88,17 +88,26 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> b
         )
 
         # Store the coordinator
-        hass.data[DOMAIN][config_entry.entry_id] = {"coordinator": coordinator}
+        _LOGGER.debug("Storing coordinator")
+        hass.data.setdefault(DOMAIN,{})[config_entry.entry_id] = {"coordinator": coordinator}
+
         _LOGGER.debug(
             f"Coordinator stored in hass.data under entry_id={config_entry.entry_id}"
         )
 
         # Forward the setup to all platforms
-        _LOGGER.debug(f"Forwarding setup to platforms: {PLATFORMS}")
-        await hass.config_entries.async_forward_entry_setups(config_entry, PLATFORMS)
+        if "platforms" not in hass.data[DOMAIN][config_entry.entry_id]:
+            _LOGGER.debug(f"Forwarding setup to platforms: {PLATFORMS}")
+            await hass.config_entries.async_forward_entry_setups(config_entry, PLATFORMS)
+            hass.data[DOMAIN][config_entry.entry_id]["platforms"] = PLATFORMS
         _LOGGER.info(
             f"async_setup_entry finished for entry_id={config_entry.entry_id}"
         )
+        _LOGGER.debug("Cleaning up old devices.")
+        await cleanup_old_device(hass)
+        _LOGGER.debug("Completed cleaning up old devices.")
+        # config_entry.runtime_data = coordinator
+        # config_entry.async_on_unload(config_entry.add_update_listener(async_update_entry))
         return True
     
     except UpdateFailed as error:
@@ -143,3 +152,13 @@ async def async_unload_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> 
 async def async_update_entry(hass: HomeAssistant, config_entry: ConfigEntry):
     """Reload Ocado component when options changed."""
     await hass.config_entries.async_reload(config_entry.entry_id)
+    
+async def cleanup_old_device(hass: HomeAssistant) -> None:
+    """Cleanup device without proper device identifier."""
+    device_reg = dr.async_get(hass)
+    _LOGGER.debug("Device reg is %s", device_reg)
+    device = device_reg.async_get_device(identifiers={(DOMAIN,)})
+    _LOGGER.debug("Device is %s", device)
+    if device:
+        _LOGGER.debug("Removing improper device %s", device.name)
+        device_reg.async_remove_device(device.id)

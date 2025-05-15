@@ -1,5 +1,6 @@
 """Constants for the Ocado integration."""
 from datetime import date, datetime
+import json
 
 DOMAIN = "ocado"
 
@@ -9,6 +10,7 @@ OCADO_CONFIRMATION_SUBJECT =    "Confirmation of your order"
 OCADO_CUTOFF_SUBJECT =          "Don't miss the cut-off time for editing your order"
 OCADO_NEW_TOTAL_SUBJECT =       "What you returned, and your new total"
 OCADO_RECEIPT_SUBJECT =         "Your receipt for today's Ocado delivery"
+OCADO_SMARTPASS_SUBJECT =       "Payment successful: Smart Pass membership"
 OCADO_SUBJECT_DICT = {
     OCADO_CANCELLATION_SUBJECT: "cancellation",
     OCADO_CONFIRMATION_SUBJECT: "confirmation",
@@ -45,7 +47,7 @@ REGEX_DAY_SHORT = r"Mon|Tue|Wed|Thu|Fri|Sat|Sun"
 REGEX_MONTH_FULL = r"January|February|March|April|May|June|July|August|September|October|November|December"
 REGEX_MONTH_SHORT = r"Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec"
 REGEX_YEAR = r"(?:19|20)\d{2}"
-REGEX_TIME = r"(0?[1-9]|1[0-2]):[0-5][0-9] ?([AaPp][Mm])?"
+REGEX_TIME = r"([01][0-9]|2[0-3]):([0-5][0-9])([AaPp][Mm])?"
 REGEX_ORDINALS = r"st|nd|rd|th"
 
 REGEX_WEIGHT = r"(?:\d+)?k?g?\s?"
@@ -113,9 +115,9 @@ class OcadoOrder:
         updated                     : datetime | None,
         order_number                : str      | None,
         delivery_datetime           : datetime | None,
-        delivery_window_end         : str      | None,
+        delivery_window_end         : datetime | None,
         edit_datetime               : datetime | None,
-        estimated_total             : float    | None,
+        estimated_total             : str      | None,
     ):
         self.updated                = updated
         self.order_number           = order_number
@@ -123,6 +125,11 @@ class OcadoOrder:
         self.delivery_window_end    = delivery_window_end
         self.edit_datetime          = edit_datetime
         self.estimated_total        = estimated_total
+    def toJSON(self):
+        order = {}
+        for k, v in vars(self).items():
+            order[k] = str(v)
+        return json.dumps(order)
 
 EMPTY_ORDER = OcadoOrder(
         updated             = datetime.now(),

@@ -11,6 +11,7 @@ from homeassistant.const import (
     CONF_SCAN_INTERVAL,
 )
 from .const import (
+    DOMAIN,
     CONF_IMAP_SERVER,
     CONF_IMAP_PORT,
     CONF_IMAP_FOLDER,
@@ -24,7 +25,8 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, Upda
 from .utils import (
     email_triage,
     order_parse,
-    sort_orders
+    sort_orders,
+    receipt_parse
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -46,11 +48,8 @@ class OcadoUpdateCoordinator(DataUpdateCoordinator):
         self.imap_folder    = config_entry.data[CONF_IMAP_FOLDER]
                 
         # Set variables from options
-        # Set variables from options
-        # self.scan_interval  = config_entry.options.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)
-        # self.imap_days      = config_entry.options.get(CONF_IMAP_DAYS, DEFAULT_IMAP_DAYS)
-        self.scan_interval = DEFAULT_SCAN_INTERVAL
-        self.imap_days = DEFAULT_IMAP_DAYS
+        self.scan_interval  = config_entry.options.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)
+        self.imap_days      = config_entry.options.get(CONF_IMAP_DAYS, DEFAULT_IMAP_DAYS)
 
         super().__init__(
             hass,
@@ -69,19 +68,33 @@ class OcadoUpdateCoordinator(DataUpdateCoordinator):
             # Retrieve all the Ocado order confirmations from the last imap_days
             triaged_emails = email_triage(self)
             orders         = []
+            _LOGGER.debug("Succesfully triaged emails, len of confirmations = %s. Proceeding to parse orders.", str(len(triaged_emails.confirmations)))
+            # total = len(triaged_emails.confirmations)
+            # i = 0
             for order in triaged_emails.confirmations:
+                # i += 1
+                # _LOGGER.debug("Proceeding to parse order %s, %s/%s", order.order_number, i, total)
                 order = order_parse(order)
-                orders.append(vars(order))
+                orders.append(order)
+            _LOGGER.debug("Succesfully compiled orders with len %s.", str(len(orders)))
             if len(orders) > 0:
+                _LOGGER.debug("Sorting orders")
                 next, upcoming = sort_orders(orders)
+                _LOGGER.debug("Orders succesfully sorted.")
             else:
                 next            = None
                 upcoming        = None
                 orders          = None
             # If there has been a recent delivery, add it as recent.
-            if triaged_emails.receipts:
-                recent          = vars(triaged_emails.receipts)
+            if len(triaged_emails.receipts) == 1:
+                _LOGGER.debug("Receipt found, adding as recent.")
+                try:
+                    order           = receipt_parse(triaged_emails.receipts[0])
+                    recent          = order
+                except: # noqa: E722
+                    recent = None
             else:
+                _LOGGER.debug("No receipt email found.")
                 recent          = None
             payload_raw = {
                     "next"      : next,
@@ -89,6 +102,8 @@ class OcadoUpdateCoordinator(DataUpdateCoordinator):
                     "recent"    : recent,
                     "orders"    : orders,
                 }
-            return json.dumps(payload_raw)
+            _LOGGER.debug("Returning update data.")
+            # return json.dumps(payload_raw)
+            return payload_raw
         except Exception as err:
             raise UpdateFailed(f"Error fetching data: {err}") from err

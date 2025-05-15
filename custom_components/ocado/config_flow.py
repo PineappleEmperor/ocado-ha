@@ -100,7 +100,8 @@ async def _validate_input(hass: HomeAssistant, data: dict[str, Any]) -> dict[str
     if check != ('OK', [b'Success']):
         _LOGGER.exception("Check failed")
         raise Exception
-    return {"title": f"Ocado Integration - {data[CONF_EMAIL]}:{data[CONF_IMAP_SERVER]}"}
+    return {"title": "Ocado UK"}
+    # return {"title": f"Ocado Integration - {data[CONF_EMAIL]}:{data[CONF_IMAP_SERVER]}"}
 
 
 async def _validate_options(hass: HomeAssistant, data: dict[str, Any]) -> dict[str, Any]:
@@ -109,7 +110,8 @@ async def _validate_options(hass: HomeAssistant, data: dict[str, Any]) -> dict[s
         raise ValueError(f"Scan interval is too low, minimum is 60 {data[CONF_SCAN_INTERVAL]}")
     if data[CONF_IMAP_DAYS] < 7:
         raise ValueError(f"Number of days to fetch is too low, minimum is 7 {data[CONF_IMAP_DAYS]}")
-    return {"title": f"Ocado Integration - {data[CONF_EMAIL]}:{data[CONF_IMAP_SERVER]}"}
+    return {"title": "Ocado UK"}
+    # return {"title": f"Ocado Integration - {data[CONF_EMAIL]}:{data[CONF_IMAP_SERVER]}"}
 
 
 class OcadoConfigFlowHandler(ConfigFlow, domain=DOMAIN):
