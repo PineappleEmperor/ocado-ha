@@ -1,15 +1,15 @@
 """Sensor setup for Ocado UK Integration."""
 
-from dataclasses import dataclass
+# from dataclasses import dataclass
 import logging
 from typing import Any
-from datetime import date, datetime
-import json
+from datetime import datetime
+# import json
 
 from homeassistant.components.sensor import (
-    SensorDeviceClass,
+    # SensorDeviceClass,
     SensorEntity,
-    SensorStateClass,
+    # SensorStateClass,
 )
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
@@ -18,8 +18,8 @@ from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import (
     CoordinatorEntity,
-    DataUpdateCoordinator,
-    UpdateFailed,
+    # DataUpdateCoordinator,
+    # UpdateFailed,
 )
 
 # from . import MyConfigEntry
@@ -27,7 +27,7 @@ from .const import (
     DAYS,
     DEVICE_CLASS,
     DOMAIN,
-    EMPTY_ATTRIBUTES,
+    # EMPTY_ATTRIBUTES,
 )
 from .coordinator import OcadoUpdateCoordinator
 from .utils import (
@@ -93,10 +93,10 @@ def create_sensor_entities(coordinator, entry_id):
     return entities
 
 
-class OcadoDelivery(CoordinatorEntity, SensorEntity):
+class OcadoDelivery(CoordinatorEntity, SensorEntity): # type: ignore
     """This sensor returns the next delivery information."""
     
-    _attr_device_class = DEVICE_CLASS
+    _attr_device_class = DEVICE_CLASS # type: ignore
 
     def __init__(self, coordinator: OcadoUpdateCoordinator, context: Any = None) -> None:
         """Initialise the sensor."""
@@ -112,7 +112,7 @@ class OcadoDelivery(CoordinatorEntity, SensorEntity):
         self._attr_state = None
 
     @property
-    def device_info(self) -> dict:
+    def device_info(self) -> dict: # type: ignore
         """Return device information for device registry."""
         return {
             "identifiers": {(DOMAIN, "deliveries")},
@@ -123,12 +123,12 @@ class OcadoDelivery(CoordinatorEntity, SensorEntity):
         }
 
     @property
-    def state(self) -> Any:
+    def state(self) -> Any: # type: ignore
         """Return the current state of the sensor."""
         return self._attr_state
 
     @property
-    def extra_state_attributes(self):
+    def extra_state_attributes(self): # type: ignore
         """Return the state attributes of the sensor."""
         return self._hass_custom_attributes
     
@@ -139,11 +139,11 @@ class OcadoDelivery(CoordinatorEntity, SensorEntity):
         now = datetime.now()
         if ocado_data["next"]:
             order = ocado_data.get("next")
-            result = set_order(self, order, now)
+            result = set_order(self, order, now) # type: ignore
             if result is False:
                 if ocado_data["upcoming"]:
                     order = ocado_data.get("upcoming")
-                    result = set_order(self, order, now)
+                    result = set_order(self, order, now) # type: ignore
                     if not result:
                         self._attr_state = None
                         self._attr_icon = "mdi:help-circle"
@@ -161,7 +161,7 @@ class OcadoDelivery(CoordinatorEntity, SensorEntity):
 class OcadoEdit(CoordinatorEntity, SensorEntity):
     """This sensor returns the next edit deadline information."""
     
-    _attr_device_class = DEVICE_CLASS
+    _attr_device_class = DEVICE_CLASS # type: ignore
 
     def __init__(self, coordinator: OcadoUpdateCoordinator, context: Any = None) -> None:
         """Initialise the sensor."""
@@ -177,7 +177,7 @@ class OcadoEdit(CoordinatorEntity, SensorEntity):
         self._attr_state = None
 
     @property
-    def device_info(self) -> dict:
+    def device_info(self) -> dict: # type: ignore
         """Return device information for device registry."""
         return {
             "identifiers": {(DOMAIN, "deliveries")},
@@ -188,12 +188,12 @@ class OcadoEdit(CoordinatorEntity, SensorEntity):
         }
 
     @property
-    def state(self) -> Any:
+    def state(self) -> Any: # type: ignore
         """Return the current state of the sensor."""
         return self._attr_state
 
     @property
-    def extra_state_attributes(self):
+    def extra_state_attributes(self): # type: ignore
         """Return the state attributes of the sensor."""
         return self._hass_custom_attributes
     
@@ -205,11 +205,11 @@ class OcadoEdit(CoordinatorEntity, SensorEntity):
         if ocado_data["next"]:
             order = ocado_data.get("next")
             # If the latest order we have details about is before today, make it known.
-            result = set_edit_order(self, order, now)
+            result = set_edit_order(self, order, now) # type: ignore
             if result is False:
                 if ocado_data["upcoming"]:
                     order = ocado_data.get("upcoming")
-                    result = set_edit_order(self, order, now)
+                    result = set_edit_order(self, order, now) # type: ignore
                     if not result:
                         self._attr_state = None
                         self._attr_icon = "mdi:help-circle"
@@ -220,10 +220,10 @@ class OcadoEdit(CoordinatorEntity, SensorEntity):
                         self._hass_custom_attributes = attributes
 
 
-class OcadoUpcoming(CoordinatorEntity, SensorEntity):
+class OcadoUpcoming(CoordinatorEntity, SensorEntity): # type: ignore
     """This sensor returns the next delivery information."""
     
-    _attr_device_class = DEVICE_CLASS
+    _attr_device_class = DEVICE_CLASS # type: ignore
 
     def __init__(self, coordinator: OcadoUpdateCoordinator, context: Any = None) -> None:
         """Initialise the sensor."""
@@ -239,7 +239,7 @@ class OcadoUpcoming(CoordinatorEntity, SensorEntity):
         self._attr_state = None
 
     @property
-    def device_info(self) -> dict:
+    def device_info(self) -> dict: # type: ignore
         """Return device information for device registry."""
         return {
             "identifiers": {(DOMAIN, "deliveries")},
@@ -255,7 +255,7 @@ class OcadoUpcoming(CoordinatorEntity, SensorEntity):
         return self._attr_state
 
     @property
-    def extra_state_attributes(self):
+    def extra_state_attributes(self): # type: ignore
         """Return the state attributes of the sensor."""
         return self._hass_custom_attributes
     
@@ -268,7 +268,7 @@ class OcadoUpcoming(CoordinatorEntity, SensorEntity):
         if "upcoming" in ocado_data:
             order = ocado_data.get("upcoming")
             # If the latest order we have details about is before today, make it known.
-            result = set_order(self, order, now)
+            result = set_order(self, order, now) # type: ignore
             if not result:
                 self._attr_state = None
                 self._attr_icon = "mdi:help-circle"
@@ -283,10 +283,10 @@ class OcadoUpcoming(CoordinatorEntity, SensorEntity):
                 self._hass_custom_attributes = attributes
 
 
-class OcadoOrderList(CoordinatorEntity, SensorEntity):
+class OcadoOrderList(CoordinatorEntity, SensorEntity): # type: ignore
     """This sensor returns a list of all Ocado orders found."""
 
-    _attr_device_class = DEVICE_CLASS
+    _attr_device_class = DEVICE_CLASS # type: ignore
 
     # Disabled by default
     _attr_entity_registry_enabled_default = False
@@ -305,7 +305,7 @@ class OcadoOrderList(CoordinatorEntity, SensorEntity):
         self._attr_state = None
 
     @property
-    def device_info(self) -> dict:
+    def device_info(self) -> dict: # type: ignore
         """Return device information for device registry."""
         return {
             "identifiers": {(DOMAIN, "deliveries")},
@@ -316,12 +316,12 @@ class OcadoOrderList(CoordinatorEntity, SensorEntity):
         }
 
     @property
-    def state(self) -> Any:
+    def state(self) -> Any: # type: ignore
         """Return the current state of the sensor."""
         return self._attr_state
 
     @property
-    def extra_state_attributes(self):
+    def extra_state_attributes(self): # type: ignore
         """Return the state attributes of the sensor."""
         return self._hass_custom_attributes
     
@@ -332,7 +332,7 @@ class OcadoOrderList(CoordinatorEntity, SensorEntity):
         if "orders" in ocado_data:
             orders = ocado_data.get("orders",[])
 
-            self._attr_state = datetime.now()
+            self._attr_state = datetime.now() # type: ignore
             self._attr_icon = "mdi:clipboard-list"
             json_orders = []
             for order in orders:
@@ -345,7 +345,7 @@ class OcadoOrderList(CoordinatorEntity, SensorEntity):
 class OcadoBBDs(SensorEntity):
     """This sensor returns the best before dates of the most recent delivery."""
 
-    _attr_device_class = DEVICE_CLASS
+    _attr_device_class = DEVICE_CLASS # type: ignore
 
     def __init__(self, coordinator: OcadoUpdateCoordinator, day: str) -> None:
         """Initialise the sensor."""
@@ -371,12 +371,12 @@ class OcadoBBDs(SensorEntity):
         }
 
     @property
-    def state(self) -> Any:
+    def state(self) -> Any: # type: ignore
         """Return the current state of the sensor."""
         return self._attr_state
 
     @property
-    def extra_state_attributes(self):
+    def extra_state_attributes(self): # type: ignore
         """Return the state attributes of the sensor."""
         return self._hass_custom_attributes
     
@@ -387,7 +387,7 @@ class OcadoBBDs(SensorEntity):
         if "orders" in ocado_data:
             orders = ocado_data.get("orders",[])
 
-            self._attr_state = datetime.now()
+            self._attr_state = datetime.now() # type: ignore
             self._attr_icon = "mdi:clipboard-list"
             self._hass_custom_attributes = {
                 "orders": orders
