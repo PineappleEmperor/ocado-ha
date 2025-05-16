@@ -1,0 +1,136 @@
+#########################################################################################
+# Made by @PineappleEmperor
+# Requires the fantastic custom button card available from HACS
+#########################################################################################
+button_card_templates:
+  ocado_card:
+      variables:
+        name: null
+        colour: null
+        icon_width: null
+        time: null
+      name: '[[[ return variables.name ]]]'
+      colour: '[[[ return variables.colour ]]]'
+      icon: '[[[ entity?.attributes?.icon ]]]'
+      show_name: true
+      show_icon: true
+      show_label: true
+      show_state: true
+      state_display: |
+        [[[
+          if (entity.state == null)
+            return '-';
+          var date = new Date(entity.state)
+          if (date.length > 8)
+            date = date.slice(0,8)
+          const getOrdinal = (n) => {
+            if (n >= 11 && n <= 13) return 'th';
+            switch (n % 10) {
+              case 1: return 'st';
+              case 2: return 'nd';
+              case 3: return 'rd';
+              default: return 'th';
+            }
+          };
+          return helpers.formatDateWeekdayShort(entity.state) + " " + date.getDate() + getOrdinal(date.getDate());
+        ]]]
+      custom_fields:
+        time: |
+          [[[
+            var time = variables.time
+            if (time == null)
+              return '-';
+            if (time.length == 4)
+              return time;
+            if (time.length > 13)
+              time = time.slice(11,16)
+            if (time.split(' - ')[0].split(':')[1] == '00')
+              return time.split(' - ').map(t => t.split(':')[0]).join(' - ');
+            else
+              return time;
+          ]]]
+      styles:
+        grid:
+          - grid-template-areas: |
+              "i n" "i s" "i time"
+          - grid-template-columns: auto 1fr
+          - grid-template-rows: 12px 12px 12px
+        card:
+          - padding: 22px 22px 22px 22px
+          - height: 150px
+          - background: rgba(10,10,10,0.85)
+        custom_fields:
+          badge:
+            - justify-self: end
+          time:
+            - justify-self: end
+            - font-size: 14px
+            - opacity: '0.7'
+            - padding-top: 18px
+            - padding-left: 0px
+        state:
+          - justify-self: end
+          - font-size: 14px
+          - opacity: '0.7'
+          - padding-top: 12px
+          - padding-left: 0px
+        name:
+          - justify-self: end
+          - font-size: 18px
+          - font-weight: 500
+          - color: |
+              [[[ return variables.colour ]]]
+        img_cell:
+          - justify-content: start
+          - position: absolute
+          - width: 120px
+          - height: 120px
+          - left: 0
+          - bottom: 0
+          - margin: 0 0 -20px -20px
+          - background: |
+              [[[ return variables.colour ]]]
+          - border-radius: 500px
+        icon:
+          - position: relative
+          - width: '[[[ return variables.icon_width ]]]'
+          - color: black
+          - opacity: '0.5'
+
+#########################################################################################
+# Cards
+#########################################################################################
+
+type: custom:button-card
+entity: sensor.ocado_next_edit_deadline
+icon: null
+template:
+  - ocado_card
+variables:
+  name: Editing
+  icon_width: 75px
+  colour: '#cd3e2f'
+  time: '[[[ return entity.state ]]]'
+tap_action:
+  action: none
+hold_action:
+  action: none
+double_tap_action:
+  action: none
+
+type: custom:button-card
+entity: sensor.ocado_next_delivery
+icon: null
+template:
+  - ocado_card
+variables:
+  name: Delivery
+  colour: '#9f68c6'
+  icon_width: 75px
+  time: '[[[ return entity.attributes.delivery_window ]]]'
+tap_action:
+  action: none
+hold_action:
+  action: none
+double_tap_action:
+  action: none

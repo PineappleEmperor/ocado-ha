@@ -38,10 +38,10 @@ from homeassistant.const import (
 
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import HomeAssistantError
-from homeassistant.helpers.selector import selector
+from homeassistant.helpers.selector import selector  # noqa: F401
 import homeassistant.helpers.config_validation as cv
 
-from .coordinator import OcadoUpdateCoordinator
+from .coordinator import OcadoUpdateCoordinator  # noqa: F401
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -162,7 +162,7 @@ class OcadoConfigFlowHandler(ConfigFlow, domain=DOMAIN):
                 # Validation was successful, so proceed to the next step.
                 # Set the unique ID
                 try:
-                    title = info.get("title")
+                    title = info.get("title") # type: ignore
                 except ValueError:
                     _LOGGER.error("Cannot get title from info")
                     raise ValueError
@@ -171,7 +171,7 @@ class OcadoConfigFlowHandler(ConfigFlow, domain=DOMAIN):
                 self._abort_if_unique_id_configured()
 
                 # Set our title variable here for use later
-                self._title = title
+                self._title = title # type: ignore
                 # save the input data for use later
                 self._input_data = user_input
 
@@ -196,7 +196,7 @@ class OcadoConfigFlowHandler(ConfigFlow, domain=DOMAIN):
 
         if self._input_data is not None:
             # if "base" not in errors:
-            self._input_data.update(user_input)
+            self._input_data.update(user_input) # type: ignore
             return self.async_create_entry(title=self._title, data=self._input_data)
 
         return self.async_show_form(
@@ -212,7 +212,7 @@ class OcadoConfigFlowHandler(ConfigFlow, domain=DOMAIN):
         """Add reconfigure step to allow to reconfigure a config entry."""
         errors: dict[str, str] = {}
         existing_entry = self.hass.config_entries.async_get_entry(
-            self.context["entry_id"]
+            self.context["entry_id"] # type: ignore
         )
         if existing_entry is None:
             _LOGGER.error("Reconfiguration failed: Config entry not found.")
@@ -221,7 +221,7 @@ class OcadoConfigFlowHandler(ConfigFlow, domain=DOMAIN):
         if user_input is not None:
             _LOGGER.debug("Reconfigure user input: %s", user_input)
             try:
-                info = await _validate_input(self.hass, user_input)
+                info = await _validate_input(self.hass, user_input)  # noqa: F841
             except CannotConnect:
                 errors["base"] = "cannot_connect"
             except InvalidAuth:
@@ -262,7 +262,7 @@ class OcadoOptionsFlowHandler(OptionsFlow):
         if user_input is not None:
             _LOGGER.debug("User options received: %s", user_input)            
             try:
-                info = _validate_options(self.hass, user_input)
+                info = _validate_options(self.hass, user_input)  # noqa: F841
             except ValueError:
                 errors["base"] = "value_error"
             if "base" not in errors:
