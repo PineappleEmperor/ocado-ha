@@ -1,10 +1,10 @@
-import pytest
-import json
-from datetime import datetime, timedelta
-from unittest.mock import AsyncMock
+# import pytest
+# import json
+# from datetime import datetime, timedelta
+# from unittest.mock import AsyncMock
 from pathlib import Path
 # from custom_components.ocado.sensor import sensor
-from custom_components.ocado.coordinator import OcadoUpdateCoordinator
+# from custom_components.ocado.coordinator import OcadoUpdateCoordinator
 
 # Load the fixture data
 fixtures_path = Path(__file__).parent / "fixtures"

@@ -78,13 +78,13 @@ EMPTY_ATTRIBUTES = {
 class OcadoEmail:
     """Class for retrieved emails."""
     def __init__(self,
-        message_id          = None,
-        email_type          = None,
-        date                = None,
-        from_address        = None,
-        subject             = None,
-        body                = None,
-        order_number        = None,
+        message_id          : bytes | None,
+        email_type          : str   | None,
+        date                : date  | None,
+        from_address        : str   | None,
+        subject             : str   | None,
+        body                : str   | None,
+        order_number        : str   | None,
     ):
         self.message_id     = message_id
         self.type           = email_type
@@ -97,11 +97,11 @@ class OcadoEmail:
 class OcadoEmails:
     """Class for all retrieved emails."""
     def __init__(self,
-        orders              = None,
-        cancelled           = None,
-        confirmations       = None,
-        new_totals          = None,
-        receipts            = None,
+        orders              : list[str],
+        cancelled           : list[OcadoEmail],
+        confirmations       : list[OcadoEmail],
+        new_totals          : list[OcadoEmail],
+        receipts            : list[OcadoEmail],
     ):
         self.orders         = orders
         self.cancelled      = cancelled
@@ -112,7 +112,7 @@ class OcadoEmails:
 class OcadoOrder:
     """Class for Ocado orders."""
     def __init__(self,
-        updated                     : datetime | None,
+        updated                     : datetime | date | None,
         order_number                : str      | None,
         delivery_datetime           : datetime | None,
         delivery_window_end         : datetime | None,

@@ -1,6 +1,6 @@
 """Utilities for Ocado UK"""
 import base64
-from datetime import date, datetime, timedelta, timezone
+from datetime import date, datetime, timedelta
 import email
 from email.policy import default as default_policy
 from imaplib import IMAP4_SSL as imap
@@ -56,16 +56,20 @@ def get_estimated_total(message: str) -> str:
     raise ValueError("Failed to parse estimated total from message.")
 
 
-def get_delivery_datetimes(message: str) -> list[datetime] | None:
+def get_delivery_datetimes(message: str | None) -> tuple[datetime, datetime] | tuple[None, None]:
     """Parse and return the delivery datetime."""
-    raw = re.search(fr"Delivery\sdate:\s{{1,20}}(?:{REGEX_DAY_FULL})\s(?P<day>{REGEX_DATE})\s(?P<month>{REGEX_MONTH_FULL})", message)
+    pattern = fr"Delivery\sdate:\s{{1,20}}(?:{REGEX_DAY_FULL})\s(?P<day>{REGEX_DATE})\s(?P<month>{REGEX_MONTH_FULL})"
+    if message is None:
+        return None, None
+    raw = re.search(pattern, message)
     if raw:
         month = raw.group('month')
         day = raw.group('day')
     else:
         _LOGGER.error("Delivery date not found when retrieving delivery datetime from message.")
         raise ValueError("Delivery date not found when retrieving delivery datetime from message.")
-    year_raw = re.search(fr"(?P<day>{REGEX_DATE})(?:{REGEX_ORDINALS})\s(?P<month>{REGEX_MONTH_FULL})\s(?P<year>{REGEX_YEAR})", message)
+    pattern = fr"(?P<day>{REGEX_DATE})(?:{REGEX_ORDINALS})\s(?P<month>{REGEX_MONTH_FULL})\s(?P<year>{REGEX_YEAR})"
+    year_raw = re.search(pattern, message)
     if year_raw:
         year = year_raw.group('year')
         # in case the delivery occurs after NY, since the year comes from the edit date
@@ -141,8 +145,10 @@ def email_triage(self) -> OcadoEmails:
         # i += 1
         # _LOGGER.debug("Starting on message %s/%s", str(i), str(total))
         result, message_data = server.fetch(message_id,"(RFC822)")
-        message_data = message_data[0][1]
-        ocado_email = _parse_email(message_id, message_data)
+        if message_data is None:
+            continue
+        message_data = message_data[0][1] # type: ignore
+        ocado_email = _parse_email(message_id, message_data) # type: ignore
         # If the type of email is a cancellation, add the order number to check for later
         if ocado_email.type == "cancellation":
             # _LOGGER.debug("Cancellation email found and added to cancelled orders.")
@@ -189,24 +195,24 @@ def email_triage(self) -> OcadoEmails:
 
 def _ocado_email_typer(subject: str) -> str:
     """Classify the type of Ocado email."""
-    ocado_email_type = OCADO_SUBJECT_DICT.get(subject, None)
+    ocado_email_type = OCADO_SUBJECT_DICT.get(subject, "Unknown")
     return ocado_email_type
 
 
 def _parse_email(message_id: bytes, message_data: bytes) -> OcadoEmail:
     """Given message data, return RetrievedEmail object."""
     email_message = email.message_from_bytes(message_data, policy=default_policy)
-    email_date = get_email_from_datetime(email_message.get("Date"))
-    email_from_address = get_email_from_address(email_message.get('From'))
+    email_date = get_email_from_datetime(email_message.get("Date")) # type: ignore
+    email_from_address = get_email_from_address(email_message.get('From')) # type: ignore
     email_subject = email_message.get("Subject")
     email_body = ""
     # multipart will return true if there are attachments, text, html versions of the body, etc.
     # if multipart returns true, get_payload will return a list instead of a string.
     if email_message.is_multipart():
-        email_body = (email_message.get_body(preferencelist=('plain','html'))).as_string()
+        email_body = (email_message.get_body(preferencelist=('plain','html'))).as_string() # type: ignore
     # best guess with HTML emails, which we need to use in some situations to grab tracking numbers
     else:
-        email_body = email_message.get_body().as_string().replace('=','').replace('\n','')
+        email_body = email_message.get_body().as_string().replace('=','').replace('\n','') # type: ignore
     if re.search(r"base64",email_body):
         # need to remove the encoding info before decoding
         email_body = re.sub(r"(?:.*\n.*)(base64\n\n)","",email_body)
@@ -214,13 +220,13 @@ def _parse_email(message_id: bytes, message_data: bytes) -> OcadoEmail:
     order_number = get_order_number(email_body)
     # need to add the receipt download for
     ocado_email = OcadoEmail(
-        message_id = message_id,
-        email_type = _ocado_email_typer(email_subject),
-        date = email_date,
-        from_address = email_from_address,
-        subject = email_subject,
-        body = email_body,
-        order_number = order_number,
+        message_id          = message_id,
+        email_type          = _ocado_email_typer(email_subject), # type: ignore
+        date                = email_date,
+        from_address        = email_from_address,
+        subject             = email_subject,
+        body                = email_body,
+        order_number        = order_number,
     )
     return ocado_email
 
@@ -228,11 +234,13 @@ def _parse_email(message_id: bytes, message_data: bytes) -> OcadoEmail:
 def receipt_parse(ocado_email: OcadoEmail) -> OcadoOrder:
     """Parse an Ocado receipt email into an OcadoOrder object."""
     # TODO return order number and actual total.
-    return ocado_email
+    return EMPTY_ORDER
 
 def order_parse(ocado_email: OcadoEmail) -> OcadoOrder:
     """Parse an Ocado confirmation email into an OcadoOrder object."""
     message = ocado_email.body
+    if message is None:
+        return EMPTY_ORDER
     delivery_datetime, delivery_window_end = get_delivery_datetimes(message)
     # _LOGGER.debug("Successfully retrieved delivery_datetime, and delivery_window_end as %s, %s.", str(delivery_datetime), str(delivery_window_end))
     order = OcadoOrder(
@@ -272,7 +280,7 @@ def sort_orders(orders: list[OcadoOrder]) -> tuple[OcadoOrder, OcadoOrder]:
     # _LOGGER.debug("Initial sort by delivery_datetime.")
     # for order in orders:
     #     _LOGGER.debug("Order %s", order.order_number)
-    orders.sort(key=lambda item:item.delivery_datetime)
+    orders.sort(key=lambda item:item.delivery_datetime) # type: ignore
     orders.reverse()
     _LOGGER.debug("Completed initial sort.")
     # for order in orders:
@@ -306,8 +314,8 @@ def sort_orders(orders: list[OcadoOrder]) -> tuple[OcadoOrder, OcadoOrder]:
                         diff = order_diff
         return next, upcoming
     except ValueError:
-        _LOGGER.error("Failed to sort orders, latest input: %s", order)
-        raise ValueError("Failed to sort orders, latest input: %s", order)
+        _LOGGER.error("Failed to sort orders, latest input: %s", order) # type: ignore
+        raise ValueError("Failed to sort orders, latest input: %s", order) # type: ignore
 
 
 
@@ -323,12 +331,12 @@ def set_order(self, order: OcadoOrder, now: datetime) -> bool:
             self._attr_state = order.delivery_datetime.date()
             self._attr_icon = iconify(days_until_next_delivery)
             attributes = {
-                "updated":      order.updated,
-                "order_number": order.order_number,
-                "delivery_datetime": order.delivery_datetime,
-                "delivery_window": get_window(order.delivery_datetime, order.delivery_window_end),
-                "edit_deadline": order.edit_datetime,
-                "estimated_total": order.estimated_total,
+                "updated"               : order.updated,
+                "order_number"          : order.order_number,
+                "delivery_datetime"     : order.delivery_datetime,
+                "delivery_window"       : get_window(order.delivery_datetime, order.delivery_window_end),
+                "edit_deadline"         : order.edit_datetime,
+                "estimated_total"       : order.estimated_total,
             }
             self._hass_custom_attributes = attributes
             return True
@@ -344,8 +352,8 @@ def set_edit_order(self, order: OcadoOrder, now: datetime) -> bool:
             self._attr_state = order.edit_datetime
             self._attr_icon = iconify(days_until_deadline)
             attributes = {
-                "updated":      order.updated,
-                "order_number": order.order_number,
+                "updated"               : order.updated,
+                "order_number"          : order.order_number,
             }
             self._hass_custom_attributes = attributes
             return True

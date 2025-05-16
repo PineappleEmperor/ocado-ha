@@ -1,8 +1,8 @@
 """DataUpdateCoordinator for our integration."""
 
-from datetime import timedelta, date
+from datetime import timedelta
 import logging
-import json
+# import json
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import (
@@ -19,7 +19,7 @@ from .const import (
     DEFAULT_SCAN_INTERVAL,
     DEFAULT_IMAP_DAYS
 )
-from homeassistant.core import DOMAIN, HomeAssistant
+from homeassistant.core import HomeAssistant
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
 from .utils import (
@@ -67,9 +67,12 @@ class OcadoUpdateCoordinator(DataUpdateCoordinator):
             # Add a way to determine if a BBD is needed -> delivery within 7days?
             # Retrieve all the Ocado order confirmations from the last imap_days
             triaged_emails = email_triage(self)
+            if triaged_emails is not None:
+                total = str(len(triaged_emails.confirmations))
+            else:
+                total = "0"
             orders         = []
-            _LOGGER.debug("Succesfully triaged emails, len of confirmations = %s. Proceeding to parse orders.", str(len(triaged_emails.confirmations)))
-            # total = len(triaged_emails.confirmations)
+            _LOGGER.debug("Succesfully triaged emails, len of confirmations = %s. Proceeding to parse orders.", total)
             # i = 0
             for order in triaged_emails.confirmations:
                 # i += 1

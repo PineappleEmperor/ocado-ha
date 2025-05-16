@@ -7,7 +7,7 @@ from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
 
 from homeassistant.exceptions import ConfigEntryNotReady
-from homeassistant.helpers.device_registry import DeviceEntry
+# from homeassistant.helpers.device_registry import DeviceEntry
 from homeassistant.helpers.update_coordinator import UpdateFailed
 
 from homeassistant.helpers import config_validation as cv, device_registry as dr
@@ -157,7 +157,7 @@ async def cleanup_old_device(hass: HomeAssistant) -> None:
     """Cleanup device without proper device identifier."""
     device_reg = dr.async_get(hass)
     _LOGGER.debug("Device reg is %s", device_reg)
-    device = device_reg.async_get_device(identifiers={(DOMAIN,)})
+    device = device_reg.async_get_device(identifiers={(DOMAIN,)}) # type: ignore
     _LOGGER.debug("Device is %s", device)
     if device:
         _LOGGER.debug("Removing improper device %s", device.name)

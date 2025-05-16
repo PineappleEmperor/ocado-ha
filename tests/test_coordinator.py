@@ -1,11 +1,11 @@
 """Test sensor for simple integration."""
 
-import pytest
-from unittest.mock import AsyncMock
-from pathlib import Path
-import json
-from datetime import datetime
-from custom_components.ocado.coordinator import OcadoUpdateCoordinator
+# import pytest
+# from unittest.mock import AsyncMock
+# from pathlib import Path
+# import json
+# from datetime import datetime
+# from custom_components.ocado.coordinator import OcadoUpdateCoordinator
 
 from homeassistant.setup import async_setup_component
 from custom_components.ocado.const import DOMAIN
