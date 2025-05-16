@@ -158,7 +158,7 @@ class OcadoDelivery(CoordinatorEntity, SensorEntity): # type: ignore
                         self._hass_custom_attributes = attributes
 
 
-class OcadoEdit(CoordinatorEntity, SensorEntity):
+class OcadoEdit(CoordinatorEntity, SensorEntity): # type: ignore
     """This sensor returns the next edit deadline information."""
     
     _attr_device_class = DEVICE_CLASS # type: ignore
@@ -250,7 +250,7 @@ class OcadoUpcoming(CoordinatorEntity, SensorEntity): # type: ignore
         }
 
     @property
-    def state(self) -> Any:
+    def state(self) -> Any: # type: ignore
         """Return the current state of the sensor."""
         return self._attr_state
 
@@ -360,7 +360,7 @@ class OcadoBBDs(SensorEntity):
         self._attr_state = None
 
     @property
-    def device_info(self) -> dict:
+    def device_info(self) -> dict: # type: ignore
         """Return device information for device registry."""
         return {
             "identifiers": {(DOMAIN, "bbd")},
