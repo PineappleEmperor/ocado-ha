@@ -1,0 +1,12 @@
+name: Ruff
+on: [ push, pull_request ]
+jobs:
+  ruff:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/ruff-action@v3.3.1
+        # with:
+        #   src: >-
+        #     path/to/file1.py
+        #     path/to/file2.py
