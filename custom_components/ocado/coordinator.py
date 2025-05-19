@@ -1,6 +1,6 @@
 """DataUpdateCoordinator for our integration."""
 
-from datetime import timedelta
+from datetime import datetime, timedelta, timezone
 import logging
 # import json
 
@@ -61,52 +61,59 @@ class OcadoUpdateCoordinator(DataUpdateCoordinator):
             always_update   = True,
         )
 
-    async def async_update_data(self):
-        """Fetch data from the IMAP server and filter the emails for Ocado ones."""        
+    async def async_update_data(self) -> dict:
+        """Fetch data from the IMAP server and filter the emails for Ocado ones."""
+        _LOGGER.debug("Beginning coordinator update")
         try:            
+            # if self.entity_id is not None:
+            # delivery_state = self.hass.states.get(self.entity_id)
             # Add a way to determine if a BBD is needed -> delivery within 7days?
             # Retrieve all the Ocado order confirmations from the last imap_days
-            triaged_emails = email_triage(self)
-            if triaged_emails is not None:
-                total = str(len(triaged_emails.confirmations))
-            else:
-                total = "0"
-            orders         = []
-            _LOGGER.debug("Succesfully triaged emails, len of confirmations = %s. Proceeding to parse orders.", total)
+            # Need to add a way to avoid too much computation when it's the same emails
+            message_ids, triaged_emails = email_triage(self)
+            # if triaged_emails is not None:
+            #     total = str(len(triaged_emails.confirmations))
+            # else:
+            #     total = "0"
+            if triaged_emails is None:
+                _LOGGER.debug("Returning old state data since no new message_ids")
+                return self.data
+            orders                  = []
+            # _LOGGER.debug("Succesfully triaged emails, len of confirmations = %s. Proceeding to parse orders.", total)
             # i = 0
             for order in triaged_emails.confirmations:
                 # i += 1
                 # _LOGGER.debug("Proceeding to parse order %s, %s/%s", order.order_number, i, total)
                 order = order_parse(order)
                 orders.append(order)
-            _LOGGER.debug("Succesfully compiled orders with len %s.", str(len(orders)))
+            # _LOGGER.debug("Succesfully compiled orders with len %s.", str(len(orders)))
             if len(orders) > 0:
-                _LOGGER.debug("Sorting orders")
-                next, upcoming = sort_orders(orders)
-                _LOGGER.debug("Orders succesfully sorted.")
+                # _LOGGER.debug("Sorting orders")
+                next, upcoming      = sort_orders(orders)
+                # _LOGGER.debug("Orders succesfully sorted.")
             else:
-                next            = None
-                upcoming        = None
-                orders          = None
+                next                = None
+                upcoming            = None
+                orders              = None
             # If there has been a recent delivery, add it as recent.
             if len(triaged_emails.receipts) == 1:
-                _LOGGER.debug("Receipt found, adding as recent.")
+                # _LOGGER.debug("Receipt found, adding as recent.")
                 try:
                     order           = receipt_parse(triaged_emails.receipts[0])
                     recent          = order
                 except: # noqa: E722
                     recent = None
             else:
-                _LOGGER.debug("No receipt email found.")
-                recent          = None
+                _LOGGER.info("No receipt email found.")
+                recent              = None
             payload_raw = {
-                    "next"      : next,
-                    "upcoming"  : upcoming,
-                    "recent"    : recent,
-                    "orders"    : orders,
+                    "updated"       : datetime.now(timezone.utc),
+                    "message_ids"   : message_ids,
+                    "next"          : next,
+                    "upcoming"      : upcoming,
+                    "recent"        : recent,
+                    "orders"        : orders,
                 }
-            _LOGGER.debug("Returning update data.")
-            # return json.dumps(payload_raw)
             return payload_raw
         except Exception as err:
             raise UpdateFailed(f"Error fetching data: {err}") from err

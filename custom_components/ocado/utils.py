@@ -6,6 +6,7 @@ from email.policy import default as default_policy
 from imaplib import IMAP4_SSL as imap
 import logging
 import re
+from typing import Any
 
 from dateutil.parser import parse
 
@@ -120,9 +121,10 @@ def capitalise(text: str) -> str:
 
 
 # reversed so that we start with the newest message and break on it
-def email_triage(self) -> OcadoEmails:
+def email_triage(self) -> tuple[list[Any], OcadoEmails | None]:
     # imap_account_email: str,imap_account_password: str,imap_server: str, imap_port: int, imap_folder: str, imap_days: int) -> OcadoEmails:
     """Access the IMAP inbox and retrieve all the relevant Ocado UK emails from the last month."""
+    _LOGGER.debug("Beginning email triage")
     today = date.today()
     server = imap(host = self.imap_host, port = self.imap_port, timeout= 30)
     server.login(self.email_address, self.password)
@@ -138,6 +140,12 @@ def email_triage(self) -> OcadoEmails:
     ocado_totalled_orders =     []
     ocado_new_totals =          []
     ocado_receipts =            []
+    # can we check the previous message ids and return the old state if they're the same?
+    if self.data is not None:
+        if self.data.get("message_ids") == message_ids:
+            server.close()
+            server.logout()
+            return message_ids, None
     # total = len(message_ids[0].split())
     # _LOGGER.debug("Beginning triaging of %s emails retrieved.", str(total))
     # i = 0
@@ -180,7 +188,7 @@ def email_triage(self) -> OcadoEmails:
 
     server.close()
     server.logout()
-    _LOGGER.debug("Finished with IMAP and closed the connection.")
+    # _LOGGER.debug("Finished with IMAP and closed the connection")
     # Combine the order numbers in case the lists aren't the same.
     ocado_orders = ocado_confirmed_orders + list(set(ocado_totalled_orders) - set(ocado_confirmed_orders))
     triaged_emails = OcadoEmails(
@@ -190,7 +198,8 @@ def email_triage(self) -> OcadoEmails:
         new_totals = ocado_new_totals,
         receipts = ocado_receipts,
     )
-    return triaged_emails
+    _LOGGER.debug("Returning triaged emails")
+    return message_ids, triaged_emails
 
 
 def _ocado_email_typer(subject: str) -> str:
@@ -282,33 +291,38 @@ def sort_orders(orders: list[OcadoOrder]) -> tuple[OcadoOrder, OcadoOrder]:
     #     _LOGGER.debug("Order %s", order.order_number)
     orders.sort(key=lambda item:item.delivery_datetime) # type: ignore
     orders.reverse()
-    _LOGGER.debug("Completed initial sort.")
+    # _LOGGER.debug("Completed initial sort.")
     # for order in orders:
     #     _LOGGER.debug("Order %s", order.delivery_datetime)
     # so do a for loop, if delivery_datetime is >= today, then do a diff and check against the current diff?
     # There's probably a better way of doing this..
     today = date.today()
+    now = datetime.now()
     # _LOGGER.debug("Using today = %s", str(today))
     diff = 2**32
     next = EMPTY_ORDER
     upcoming = EMPTY_ORDER
-    i = 0
-    total = len(orders)
+    # i = 0
+    # total = len(orders)
     
     try:
         for order in orders:
-            i += 1
-            _LOGGER.debug("Sorting with order %s/%s", i, total)            
-            if order.delivery_datetime is not None:
+            # i += 1
+            # _LOGGER.debug("Sorting with order %s/%s", i, total)
+            if (order.delivery_datetime is not None) and (order.delivery_window_end is not None):
                 order_date = order.delivery_datetime.date()
-                _LOGGER.debug("Order date is %s", str(order_date))
+                # _LOGGER.debug("Order date is %s", str(order_date))
                 if order_date >= today:
+                    # If the order is today, check if it's been delivered
+                    if order_date == today:
+                        if  order.delivery_window_end < now:
+                            continue
                     order_diff = (order_date - today).days
-                    _LOGGER.debug("order diff is %s", order_diff)
+                    # _LOGGER.debug("order diff is %s", order_diff)
                     # Could have more than one order in a day.. Surely not?!
-                    _LOGGER.debug("Checking diff to see if this is the closest email.")
+                    # _LOGGER.debug("Checking diff to see if this is the closest email.")
                     if order_diff < diff:
-                        _LOGGER.debug("Order diff is smaller!")
+                        # _LOGGER.debug("Order diff is smaller!")
                         upcoming = next
                         next = order
                         diff = order_diff
@@ -321,16 +335,14 @@ def sort_orders(orders: list[OcadoOrder]) -> tuple[OcadoOrder, OcadoOrder]:
 
 def set_order(self, order: OcadoOrder, now: datetime) -> bool:
     """This function validates an order is in the future and sets the state and attributes if it is."""
+    _LOGGER.debug("Setting order")
     if (order.delivery_window_end is not None) and (order.delivery_datetime is not None):
         today = now.date()
-        _LOGGER.debug("Order has both datetimes needed.")
-        _LOGGER.debug("Order has datetime check: %s is >= %s?: %s", order.delivery_window_end, now, order.delivery_window_end >= now)
         if order.delivery_window_end >= now:
-            _LOGGER.debug("Order is in the future.")
             days_until_next_delivery = (order.delivery_datetime.date() - today).days
             self._attr_state = order.delivery_datetime.date()
             self._attr_icon = iconify(days_until_next_delivery)
-            attributes = {
+            self._hass_custom_attributes = {
                 "updated"               : order.updated,
                 "order_number"          : order.order_number,
                 "delivery_datetime"     : order.delivery_datetime,
@@ -338,13 +350,13 @@ def set_order(self, order: OcadoOrder, now: datetime) -> bool:
                 "edit_deadline"         : order.edit_datetime,
                 "estimated_total"       : order.estimated_total,
             }
-            self._hass_custom_attributes = attributes
             return True
     _LOGGER.debug("Order is not in the future.")
     return False
 
 def set_edit_order(self, order: OcadoOrder, now: datetime) -> bool:
     """This function validates an order is in the future and sets the state and attributes if it is."""
+    _LOGGER.debug("Setting edit order")
     if (order.edit_datetime is not None):
         today = now.date()
         if order.edit_datetime >= now:
