@@ -34,7 +34,7 @@ from .coordinator import OcadoUpdateCoordinator
 from .utils import (
     set_order,
     set_edit_order,
-    set_receipt,
+    # set_receipt,
     set_total,
 )
 
@@ -333,7 +333,7 @@ class OcadoTotal(CoordinatorEntity, SensorEntity): # type: ignore
         now = datetime.now()
         order = ocado_data.get("total")
         if order is not None:
-            result = set_total(self, order, now) # type: ignore
+            result = set_total(self, order, now) # noqa: F841
         else:
             self._attr_state = None
             self._attr_icon = "mdi:help-circle"
