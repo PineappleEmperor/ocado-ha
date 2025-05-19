@@ -50,7 +50,7 @@ def get_email_from_datetime(email_date_raw: str) -> date:
 def get_estimated_total(message: str) -> str:
     """Find and return the estimated total from a 'what you returned' email."""
     pattern = r"Total\s\(estimated\):\s{1,20}(?P<total>\d+.\d{2})\sGBP"
-    raw = re.search(pattern ,message)
+    raw = re.search(pattern, message)
     if raw:
         return raw.group('total')
     _LOGGER.error("Failed to parse estimated total from message.")
@@ -231,7 +231,24 @@ def _parse_email(message_id: bytes, message_data: bytes) -> OcadoEmail:
 def receipt_parse(ocado_email: OcadoEmail) -> OcadoOrder:
     """Parse an Ocado receipt email into an OcadoOrder object."""
     # TODO return order number and actual total.
-    return EMPTY_ORDER
+    message = ocado_email.body
+    if message is None:
+        return EMPTY_ORDER
+    pattern = r"New\sorder\stotal:\s{1,20}(?P<total>\d+.\d{1,2})\sGBP"
+    raw = re.search(pattern, message)
+    if raw:
+        total = raw.group("total")
+    else:
+        total = None
+    recent_order = OcadoOrder(
+        updated             = ocado_email.date,
+        order_number        = ocado_email.order_number,
+        delivery_datetime   = None,
+        delivery_window_end = None,
+        edit_datetime       = None,
+        estimated_total     = total,
+    )
+    return recent_order
 
 def order_parse(ocado_email: OcadoEmail) -> OcadoOrder:
     """Parse an Ocado confirmation email into an OcadoOrder object."""
@@ -332,6 +349,21 @@ def set_edit_order(self, order: OcadoOrder, now: datetime) -> bool:
             days_until_deadline = (order.edit_datetime.date() - today).days
             self._attr_state = order.edit_datetime
             self._attr_icon = iconify(days_until_deadline)
+            attributes = {
+                "updated"               : order.updated,
+                "order_number"          : order.order_number,
+            }
+            self._hass_custom_attributes = attributes
+            return True
+    return False
+
+
+def set_recent_order(self, order: OcadoOrder, now: datetime) -> bool:
+    """This function validates an order is in the future and sets the state and attributes if it is."""
+    _LOGGER.debug("Setting recent order")
+    if (order.estimated_total is not None):
+            self._attr_state = order.estimated_total
+            self._attr_icon = "mdi:receipt-text"
             attributes = {
                 "updated"               : order.updated,
                 "order_number"          : order.order_number,
