@@ -122,7 +122,6 @@ def capitalise(text: str) -> str:
 
 # reversed so that we start with the newest message and break on it
 def email_triage(self) -> tuple[list[Any], OcadoEmails | None]:
-    # imap_account_email: str,imap_account_password: str,imap_server: str, imap_port: int, imap_folder: str, imap_days: int) -> OcadoEmails:
     """Access the IMAP inbox and retrieve all the relevant Ocado UK emails from the last month."""
     _LOGGER.debug("Beginning email triage")
     today = date.today()
@@ -140,18 +139,14 @@ def email_triage(self) -> tuple[list[Any], OcadoEmails | None]:
     ocado_totalled_orders =     []
     ocado_new_totals =          []
     ocado_receipts =            []
-    # can we check the previous message ids and return the old state if they're the same?
+    # Check the previous message ids and return the old state if they're the same
     if self.data is not None:
         if self.data.get("message_ids") == message_ids:
+            _LOGGER.debug("Returning previous state, since message_ids are unchanged.")
             server.close()
             server.logout()
             return message_ids, None
-    # total = len(message_ids[0].split())
-    # _LOGGER.debug("Beginning triaging of %s emails retrieved.", str(total))
-    # i = 0
     for message_id in reversed(message_ids[0].split()):
-        # i += 1
-        # _LOGGER.debug("Starting on message %s/%s", str(i), str(total))
         result, message_data = server.fetch(message_id,"(RFC822)")
         if message_data is None:
             continue
@@ -159,7 +154,6 @@ def email_triage(self) -> tuple[list[Any], OcadoEmails | None]:
         ocado_email = _parse_email(message_id, message_data) # type: ignore
         # If the type of email is a cancellation, add the order number to check for later
         if ocado_email.type == "cancellation":
-            # _LOGGER.debug("Cancellation email found and added to cancelled orders.")
             ocado_cancelled.append(ocado_email.order_number)
         # If the order number isn't in the list of cancelled order numbers
         if ocado_email.order_number not in ocado_cancelled:
@@ -167,28 +161,22 @@ def email_triage(self) -> tuple[list[Any], OcadoEmails | None]:
             if ocado_email.type == "receipt":
                 # We only care about the most recent receipt
                 if len(ocado_receipts) == 0:
-                    # _LOGGER.debug("Ocado order (%s) added to receipts.", ocado_email.order_number)
                     ocado_receipts.append(ocado_email)                    
                     # TODO add code to download the receipt attachment
-                    # ocado_email.message_id
             elif ocado_email.type == "confirmation":
                 # Make sure we're not adding an older version of an order we already have
-                # _LOGGER.debug("Confirmed order is not in the list of confirmed orders? %s", ocado_email.order_number not in ocado_confirmed_orders)
                 if ocado_email.order_number not in ocado_confirmed_orders:
                     ocado_confirmed_orders.append(ocado_email.order_number)
-                    # _LOGGER.debug("Ocado order (%s) added to confirmations.", ocado_email.order_number)
                     ocado_confirmations.append(ocado_email)
             elif ocado_email.type == "new_total":
                 # Make sure we're not adding an older version of an order we already have
                 if ocado_email.order_number not in ocado_totalled_orders:
                     ocado_totalled_orders.append(ocado_email.order_number)
-                    # _LOGGER.debug("Ocado order (%s) added to totals.", ocado_email.order_number)
                     ocado_new_totals.append(ocado_email)
 
 
     server.close()
     server.logout()
-    # _LOGGER.debug("Finished with IMAP and closed the connection")
     # Combine the order numbers in case the lists aren't the same.
     ocado_orders = ocado_confirmed_orders + list(set(ocado_totalled_orders) - set(ocado_confirmed_orders))
     triaged_emails = OcadoEmails(
@@ -251,7 +239,6 @@ def order_parse(ocado_email: OcadoEmail) -> OcadoOrder:
     if message is None:
         return EMPTY_ORDER
     delivery_datetime, delivery_window_end = get_delivery_datetimes(message)
-    # _LOGGER.debug("Successfully retrieved delivery_datetime, and delivery_window_end as %s, %s.", str(delivery_datetime), str(delivery_window_end))
     order = OcadoOrder(
         updated             = ocado_email.date,
         order_number        = ocado_email.order_number,
@@ -260,7 +247,6 @@ def order_parse(ocado_email: OcadoEmail) -> OcadoOrder:
         edit_datetime       = get_edit_datetime(message),
         estimated_total     = get_estimated_total(message),
     )
-    # _LOGGER.debug("Returning parsed order: %s, %s, %s, %s, %s, %s", order.updated, order.order_number, str(order.delivery_datetime), str(order.delivery_window_end), str(order.edit_datetime), order.estimated_total)
     return order
 
 
@@ -286,43 +272,26 @@ def get_window(delivery_datetime: datetime, delivery_window_end: datetime) -> st
 def sort_orders(orders: list[OcadoOrder]) -> tuple[OcadoOrder, OcadoOrder]:
     """Sorts the list of orders and returns the next and upcoming orders."""
     # First, sort by the date, but note that the first order could be in the distant future.
-    # _LOGGER.debug("Initial sort by delivery_datetime.")
-    # for order in orders:
-    #     _LOGGER.debug("Order %s", order.order_number)
     orders.sort(key=lambda item:item.delivery_datetime) # type: ignore
     orders.reverse()
-    # _LOGGER.debug("Completed initial sort.")
-    # for order in orders:
-    #     _LOGGER.debug("Order %s", order.delivery_datetime)
-    # so do a for loop, if delivery_datetime is >= today, then do a diff and check against the current diff?
     # There's probably a better way of doing this..
     today = date.today()
     now = datetime.now()
-    # _LOGGER.debug("Using today = %s", str(today))
     diff = 2**32
     next = EMPTY_ORDER
     upcoming = EMPTY_ORDER
-    # i = 0
-    # total = len(orders)
-    
     try:
         for order in orders:
-            # i += 1
-            # _LOGGER.debug("Sorting with order %s/%s", i, total)
             if (order.delivery_datetime is not None) and (order.delivery_window_end is not None):
                 order_date = order.delivery_datetime.date()
-                # _LOGGER.debug("Order date is %s", str(order_date))
                 if order_date >= today:
                     # If the order is today, check if it's been delivered
                     if order_date == today:
                         if  order.delivery_window_end < now:
                             continue
                     order_diff = (order_date - today).days
-                    # _LOGGER.debug("order diff is %s", order_diff)
-                    # Could have more than one order in a day.. Surely not?!
-                    # _LOGGER.debug("Checking diff to see if this is the closest email.")
+                    # Could have more than one order in a day.. Going to ignore that case
                     if order_diff < diff:
-                        # _LOGGER.debug("Order diff is smaller!")
                         upcoming = next
                         next = order
                         diff = order_diff
