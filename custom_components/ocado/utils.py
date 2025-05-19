@@ -136,9 +136,8 @@ def email_triage(self) -> tuple[list[Any], OcadoEmails | None]:
     ocado_cancelled =           []
     ocado_confirmations =       []
     ocado_confirmed_orders =    []
-    ocado_totalled_orders =     []
-    ocado_new_totals =          []
-    ocado_receipts =            []
+    ocado_total =               None
+    ocado_receipt =             None
     # Check the previous message ids and return the old state if they're the same
     if self.data is not None:
         if self.data.get("message_ids") == message_ids:
@@ -160,8 +159,8 @@ def email_triage(self) -> tuple[list[Any], OcadoEmails | None]:
             # This is done first, since if the order number exists already from a confirmation, we still want to add the receipt.
             if ocado_email.type == "receipt":
                 # We only care about the most recent receipt
-                if len(ocado_receipts) == 0:
-                    ocado_receipts.append(ocado_email)                    
+                if ocado_receipt is None:
+                    ocado_receipt = ocado_email
                     # TODO add code to download the receipt attachment
             elif ocado_email.type == "confirmation":
                 # Make sure we're not adding an older version of an order we already have
@@ -169,22 +168,22 @@ def email_triage(self) -> tuple[list[Any], OcadoEmails | None]:
                     ocado_confirmed_orders.append(ocado_email.order_number)
                     ocado_confirmations.append(ocado_email)
             elif ocado_email.type == "new_total":
-                # Make sure we're not adding an older version of an order we already have
-                if ocado_email.order_number not in ocado_totalled_orders:
-                    ocado_totalled_orders.append(ocado_email.order_number)
-                    ocado_new_totals.append(ocado_email)
+                # We only care about the most recent new total
+                if ocado_total is None:
+                    ocado_confirmed_orders.append(ocado_email.order_number)
+                    ocado_total = ocado_email
 
 
     server.close()
     server.logout()
-    # Combine the order numbers in case the lists aren't the same.
-    ocado_orders = ocado_confirmed_orders + list(set(ocado_totalled_orders) - set(ocado_confirmed_orders))
+    # It's possible the total order number is repeated, so remove it
+    ocado_orders = list(set(ocado_confirmed_orders))
     triaged_emails = OcadoEmails(
         orders = ocado_orders,
         cancelled = ocado_cancelled,
         confirmations = ocado_confirmations,
-        new_totals = ocado_new_totals,
-        receipts = ocado_receipts,
+        total = ocado_total,
+        receipt = ocado_receipt,
     )
     _LOGGER.debug("Returning triaged emails")
     return message_ids, triaged_emails
@@ -228,8 +227,8 @@ def _parse_email(message_id: bytes, message_data: bytes) -> OcadoEmail:
     return ocado_email
 
 
-def receipt_parse(ocado_email: OcadoEmail) -> OcadoOrder:
-    """Parse an Ocado receipt email into an OcadoOrder object."""
+def total_parse(ocado_email: OcadoEmail) -> OcadoOrder:
+    """Parse an Ocado total email into an OcadoOrder object."""
     # TODO return order number and actual total.
     message = ocado_email.body
     if message is None:
@@ -240,7 +239,7 @@ def receipt_parse(ocado_email: OcadoEmail) -> OcadoOrder:
         total = raw.group("total")
     else:
         total = None
-    recent_order = OcadoOrder(
+    total = OcadoOrder(
         updated             = ocado_email.date,
         order_number        = ocado_email.order_number,
         delivery_datetime   = None,
@@ -248,7 +247,34 @@ def receipt_parse(ocado_email: OcadoEmail) -> OcadoOrder:
         edit_datetime       = None,
         estimated_total     = total,
     )
-    return recent_order
+    return total
+
+
+def receipt_parse(ocado_email: OcadoEmail) -> OcadoOrder:
+    """Parse an Ocado receipt email into an OcadoOrder object."""
+    # TODO return BBD info.
+    # message = ocado_email.body
+    # if message is None:
+    #     return EMPTY_ORDER
+    # _LOGGER.debug("Trying to find receit total in %s", message)
+    # pattern = r"New\sorder\stotal:\s{1,20}(?P<total>\d+.\d{1,2})\sGBP"
+    # raw = re.search(pattern, message)
+    # _LOGGER.debug("Found %s", raw)
+    # if raw:
+    #     total = raw.group("total")
+    #     _LOGGER.debug("Found total = %s", total)
+    # else:
+    #     total = None
+    # recent_order = OcadoOrder(
+    #     updated             = ocado_email.date,
+    #     order_number        = ocado_email.order_number,
+    #     delivery_datetime   = None,
+    #     delivery_window_end = None,
+    #     edit_datetime       = None,
+    #     estimated_total     = total,
+    # )
+    return EMPTY_ORDER
+
 
 def order_parse(ocado_email: OcadoEmail) -> OcadoOrder:
     """Parse an Ocado confirmation email into an OcadoOrder object."""
@@ -358,11 +384,11 @@ def set_edit_order(self, order: OcadoOrder, now: datetime) -> bool:
     return False
 
 
-def set_recent_order(self, order: OcadoOrder, now: datetime) -> bool:
+def set_total(self, order: OcadoOrder, now: datetime) -> bool:
     """This function validates an order is in the future and sets the state and attributes if it is."""
-    _LOGGER.debug("Setting recent order")
+    _LOGGER.debug("Setting total order")
     if (order.estimated_total is not None):
-            self._attr_state = order.estimated_total
+            self._attr_state = str(order.estimated_total)
             self._attr_icon = "mdi:receipt-text"
             attributes = {
                 "updated"               : order.updated,
@@ -370,4 +396,19 @@ def set_recent_order(self, order: OcadoOrder, now: datetime) -> bool:
             }
             self._hass_custom_attributes = attributes
             return True
+    return False
+
+
+def set_receipt(self, order: OcadoOrder, now: datetime) -> bool:
+    """This function validates an order is in the future and sets the state and attributes if it is."""
+    _LOGGER.debug("Setting receipt")
+    # if (order.estimated_total is not None):
+    #         self._attr_state = order.estimated_total
+    #         self._attr_icon = "mdi:receipt-text"
+    #         attributes = {
+    #             "updated"               : order.updated,
+    #             "order_number"          : order.order_number,
+    #         }
+    #         self._hass_custom_attributes = attributes
+    #         return True
     return False

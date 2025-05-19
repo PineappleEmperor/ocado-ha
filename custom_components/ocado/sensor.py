@@ -10,6 +10,7 @@ from homeassistant.components.sensor import (
     # SensorDeviceClass,
     SensorEntity,
     # SensorStateClass,
+    SensorDeviceClass,
 )
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant, callback
@@ -33,7 +34,8 @@ from .coordinator import OcadoUpdateCoordinator
 from .utils import (
     set_order,
     set_edit_order,
-    set_recent_order,
+    set_receipt,
+    set_total,
 )
 
 PLATFORMS = [Platform.SENSOR]
@@ -63,7 +65,7 @@ async def async_setup_entry(
     sensors = [
         OcadoDelivery(coordinator),
         OcadoEdit(coordinator),
-        OcadoReceipt(coordinator),
+        OcadoTotal(coordinator),
         OcadoUpcoming(coordinator),
         OcadoOrderList(coordinator)
     ]
@@ -248,9 +250,23 @@ class OcadoEdit(CoordinatorEntity, SensorEntity): # type: ignore
                 "updated":      datetime.now(),
                 "order_number": None,
             }
+        # Could hash the dicts for better comparison and to detect other changes.. but I think updated would change.
+        if self.entity_id is not None:
+            current = self.hass.states.get(self.entity_id)
+            new_updated = self._hass_custom_attributes.get("updated")
+            
+            if current is None:
+                self.async_write_ha_state()
+                return
+            
+            old_updated = current.attributes.get("updated")
+            _LOGGER.debug("Comparing with old attributes; old_updated = %s, while new_updated = %s", old_updated, new_updated)
+            if old_updated != new_updated: # type: ignore
+                _LOGGER.debug("Updating due to new attributes")
+                self.async_write_ha_state()
 
 
-class OcadoReceipt(CoordinatorEntity, SensorEntity): # type: ignore
+class OcadoTotal(CoordinatorEntity, SensorEntity): # type: ignore
     """This sensor returns the next edit deadline information."""
     
     _attr_device_class = DEVICE_CLASS # type: ignore
@@ -293,10 +309,20 @@ class OcadoReceipt(CoordinatorEntity, SensorEntity): # type: ignore
         """Return the state attributes of the sensor."""
         return self._hass_custom_attributes
     
+    @property
+    def device_class(self): # type: ignore
+        """The type of sensor"""
+        return SensorDeviceClass.MONETARY
+    
+    @property
+    def native_unit_of_measurement(self): # type: ignore
+        """The unit of measurement of sensor"""
+        return "GBP"
+    
     @callback
     def _handle_coordinator_update(self) -> None:
         """Fetch the latest data from the coordinator."""
-        _LOGGER.debug("Updating the edit sensor")
+        _LOGGER.debug("Updating the last total sensor")
         
         ocado_data = self.coordinator.data
         if not ocado_data:
@@ -305,10 +331,9 @@ class OcadoReceipt(CoordinatorEntity, SensorEntity): # type: ignore
             return
         
         now = datetime.now()
-        order = ocado_data.get("recent")
+        order = ocado_data.get("total")
         if order is not None:
-            result = set_recent_order(self, order, now) # type: ignore
-            _LOGGER.debug("Set_recent_order returned %s", result)
+            result = set_total(self, order, now) # type: ignore
         else:
             self._attr_state = None
             self._attr_icon = "mdi:help-circle"
@@ -316,6 +341,20 @@ class OcadoReceipt(CoordinatorEntity, SensorEntity): # type: ignore
                 "updated":      datetime.now(),
                 "order_number": None,
             }
+        # Could hash the dicts for better comparison and to detect other changes.. but I think updated would change.
+        if self.entity_id is not None:
+            current = self.hass.states.get(self.entity_id)
+            new_updated = self._hass_custom_attributes.get("updated")
+            
+            if current is None:
+                self.async_write_ha_state()
+                return
+            
+            old_updated = current.attributes.get("updated")
+            _LOGGER.debug("Comparing with old attributes; old_updated = %s, while new_updated = %s", old_updated, new_updated)
+            if old_updated != new_updated: # type: ignore
+                _LOGGER.debug("Updating due to new attributes")
+                self.async_write_ha_state()
 
 
 class OcadoUpcoming(CoordinatorEntity, SensorEntity): # type: ignore
@@ -478,6 +517,20 @@ class OcadoOrderList(CoordinatorEntity, SensorEntity): # type: ignore
             self._hass_custom_attributes = {
                 "orders": []
             }
+        # Could hash the dicts for better comparison and to detect other changes.. but I think updated would change.
+        if self.entity_id is not None:
+            current = self.hass.states.get(self.entity_id)
+            new_updated = self._hass_custom_attributes.get("updated")
+            
+            if current is None:
+                self.async_write_ha_state()
+                return
+            
+            old_updated = current.attributes.get("updated")
+            _LOGGER.debug("Comparing with old attributes; old_updated = %s, while new_updated = %s", old_updated, new_updated)
+            if old_updated != new_updated: # type: ignore
+                _LOGGER.debug("Updating due to new attributes")
+                self.async_write_ha_state()
 
 
 class OcadoBBDs(SensorEntity):

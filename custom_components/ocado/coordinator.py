@@ -26,7 +26,8 @@ from .utils import (
     email_triage,
     order_parse,
     sort_orders,
-    receipt_parse
+    receipt_parse,
+    total_parse,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -82,21 +83,32 @@ class OcadoUpdateCoordinator(DataUpdateCoordinator):
                 upcoming            = None
                 orders              = None
             # If there has been a recent delivery, add it as recent.
-            if len(triaged_emails.receipts) == 1:
+            if triaged_emails.receipt is not None:
                 try:
-                    order           = receipt_parse(triaged_emails.receipts[0])
-                    recent          = order
+                    order           = receipt_parse(triaged_emails.receipt)
+                    receipt         = order
                 except: # noqa: E722
-                    recent = None
+                    receipt         = None
             else:
                 _LOGGER.info("No receipt email found.")
-                recent              = None
+                receipt             = None
+            # If there has been a recent delivery, add the total.
+            if triaged_emails.total is not None:
+                try:
+                    order           = total_parse(triaged_emails.total)
+                    total           = order
+                except: # noqa: E722
+                    total = None
+            else:
+                _LOGGER.info("No receipt email found.")
+                total               = None
             payload_raw = {
                     "updated"       : datetime.now(timezone.utc),
                     "message_ids"   : message_ids,
                     "next"          : next,
                     "upcoming"      : upcoming,
-                    "recent"        : recent,
+                    "total"         : total,
+                    "receipt"       : receipt,
                     "orders"        : orders,
                 }
             return payload_raw

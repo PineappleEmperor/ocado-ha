@@ -100,14 +100,14 @@ class OcadoEmails:
         orders              : list[str],
         cancelled           : list[OcadoEmail],
         confirmations       : list[OcadoEmail],
-        new_totals          : list[OcadoEmail],
-        receipts            : list[OcadoEmail],
+        total               : OcadoEmail | None,
+        receipt             : OcadoEmail | None,
     ):
         self.orders         = orders
         self.cancelled      = cancelled
         self.confirmations  = confirmations
-        self.new_totals     = new_totals
-        self.receipts       = receipts
+        self.total          = total
+        self.receipt        = receipt
 
 class OcadoOrder:
     """Class for Ocado orders."""
