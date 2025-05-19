@@ -10,9 +10,10 @@ from homeassistant.components.sensor import (
     # SensorDeviceClass,
     SensorEntity,
     # SensorStateClass,
+    SensorDeviceClass,
 )
 from homeassistant.const import Platform
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
@@ -32,7 +33,9 @@ from .const import (
 from .coordinator import OcadoUpdateCoordinator
 from .utils import (
     set_order,
-    set_edit_order
+    set_edit_order,
+    # set_receipt,
+    set_total,
 )
 
 PLATFORMS = [Platform.SENSOR]
@@ -62,6 +65,7 @@ async def async_setup_entry(
     sensors = [
         OcadoDelivery(coordinator),
         OcadoEdit(coordinator),
+        OcadoTotal(coordinator),
         OcadoUpcoming(coordinator),
         OcadoOrderList(coordinator)
     ]
@@ -100,7 +104,7 @@ class OcadoDelivery(CoordinatorEntity, SensorEntity): # type: ignore
 
     def __init__(self, coordinator: OcadoUpdateCoordinator, context: Any = None) -> None:
         """Initialise the sensor."""
-        # super().__init__(coordinator)
+        super().__init__(coordinator, context=context)
         self.coordinator = coordinator
         self.coordinator_context = context
         self.device_id = "Ocado Deliveries"
@@ -111,6 +115,10 @@ class OcadoDelivery(CoordinatorEntity, SensorEntity): # type: ignore
         self._attr_icon = "mdi:cart-outline"
         self._attr_state = None
 
+    async def async_added_to_hass(self):
+        _LOGGER.debug("Running async_added_to_hass")
+        await super().async_added_to_hass()
+
     @property
     def device_info(self) -> dict: # type: ignore
         """Return device information for device registry."""
@@ -131,31 +139,49 @@ class OcadoDelivery(CoordinatorEntity, SensorEntity): # type: ignore
     def extra_state_attributes(self): # type: ignore
         """Return the state attributes of the sensor."""
         return self._hass_custom_attributes
-    
-    async def async_update(self) -> None:
-        """Fetch the latest data from the coordinator."""
-        await self.coordinator.async_request_refresh()
+
+    @callback
+    def _handle_coordinator_update(self) -> None:
+        """Handle updates from the coordinator and refresh sensor state."""
+        _LOGGER.debug("Handling coordinator update for %s", self.entity_id)
+        
         ocado_data = self.coordinator.data
+        if not ocado_data:
+            _LOGGER.warning("Coordinator data is None for %s", self.entity_id)
+            self._attr_state = None
+            return
+        
         now = datetime.now()
-        if ocado_data["next"]:
-            order = ocado_data.get("next")
+        order = ocado_data.get("next") or ocado_data.get("upcoming")
+        
+        if order is not None:
             result = set_order(self, order, now) # type: ignore
-            if result is False:
-                if ocado_data["upcoming"]:
-                    order = ocado_data.get("upcoming")
-                    result = set_order(self, order, now) # type: ignore
-                    if not result:
-                        self._attr_state = None
-                        self._attr_icon = "mdi:help-circle"
-                        attributes = {
-                            "updated":      datetime.now(),
-                            "order_number": None,
-                            "delivery_datetime": None,
-                            "delivery_window": None,
-                            "edit_deadline": None,
-                            "estimated_total": None,
-                        }
-                        self._hass_custom_attributes = attributes
+            _LOGGER.debug("Set_order returned %s", result)
+        else:
+            self._attr_state = None
+            self._attr_icon = "mdi:help-circle"
+            self._hass_custom_attributes = {
+                "updated":      datetime.now(),
+                "order_number": None,
+                "delivery_datetime": None,
+                "delivery_window": None,
+                "edit_deadline": None,
+                "estimated_total": None,
+            }
+        # Could hash the dicts for better comparison and to detect other changes.. but I think updated would change.
+        if self.entity_id is not None:
+            current = self.hass.states.get(self.entity_id)
+            new_updated = self._hass_custom_attributes.get("updated")
+            
+            if current is None:
+                self.async_write_ha_state()
+                return
+            
+            old_updated = current.attributes.get("updated")
+            _LOGGER.debug("Comparing with old attributes; old_updated = %s, while new_updated = %s", old_updated, new_updated)
+            if old_updated != new_updated: # type: ignore
+                _LOGGER.debug("Updating due to new attributes")
+                self.async_write_ha_state()
 
 
 class OcadoEdit(CoordinatorEntity, SensorEntity): # type: ignore
@@ -165,7 +191,7 @@ class OcadoEdit(CoordinatorEntity, SensorEntity): # type: ignore
 
     def __init__(self, coordinator: OcadoUpdateCoordinator, context: Any = None) -> None:
         """Initialise the sensor."""
-        # super().__init__(coordinator)
+        super().__init__(coordinator, context=context)
         self.coordinator = coordinator
         self.coordinator_context = context
         self.device_id = "Ocado Deliveries"
@@ -176,6 +202,10 @@ class OcadoEdit(CoordinatorEntity, SensorEntity): # type: ignore
         self._attr_icon = "mdi:text-box-edit"
         self._attr_state = None
 
+    async def async_added_to_hass(self):
+        _LOGGER.debug("Running async_added_to_hass")
+        await super().async_added_to_hass()
+
     @property
     def device_info(self) -> dict: # type: ignore
         """Return device information for device registry."""
@@ -197,27 +227,134 @@ class OcadoEdit(CoordinatorEntity, SensorEntity): # type: ignore
         """Return the state attributes of the sensor."""
         return self._hass_custom_attributes
     
-    async def async_update(self) -> None:
+    @callback
+    def _handle_coordinator_update(self) -> None:
         """Fetch the latest data from the coordinator."""
-        await self.coordinator.async_request_refresh()
+        _LOGGER.debug("Updating the edit sensor")
+        
         ocado_data = self.coordinator.data
-        now = datetime.now()
-        if ocado_data["next"]:
-            order = ocado_data.get("next")
-            # If the latest order we have details about is before today, make it known.
+        if not ocado_data:
+            _LOGGER.warning("Coordinator data is None for %s", self.entity_id)
+            self._attr_state = None
+            return
+        
+        now = datetime.now()        
+        order = ocado_data.get("next") or ocado_data.get("upcoming")
+        if order is not None:
             result = set_edit_order(self, order, now) # type: ignore
-            if result is False:
-                if ocado_data["upcoming"]:
-                    order = ocado_data.get("upcoming")
-                    result = set_edit_order(self, order, now) # type: ignore
-                    if not result:
-                        self._attr_state = None
-                        self._attr_icon = "mdi:help-circle"
-                        attributes = {
-                            "updated":      datetime.now(),
-                            "order_number": None,
-                        }
-                        self._hass_custom_attributes = attributes
+            _LOGGER.debug("Set_order returned %s", result)
+        else:
+            self._attr_state = None
+            self._attr_icon = "mdi:help-circle"
+            self._hass_custom_attributes = {
+                "updated":      datetime.now(),
+                "order_number": None,
+            }
+        # Could hash the dicts for better comparison and to detect other changes.. but I think updated would change.
+        if self.entity_id is not None:
+            current = self.hass.states.get(self.entity_id)
+            new_updated = self._hass_custom_attributes.get("updated")
+            
+            if current is None:
+                self.async_write_ha_state()
+                return
+            
+            old_updated = current.attributes.get("updated")
+            _LOGGER.debug("Comparing with old attributes; old_updated = %s, while new_updated = %s", old_updated, new_updated)
+            if old_updated != new_updated: # type: ignore
+                _LOGGER.debug("Updating due to new attributes")
+                self.async_write_ha_state()
+
+
+class OcadoTotal(CoordinatorEntity, SensorEntity): # type: ignore
+    """This sensor returns the next edit deadline information."""
+    
+    _attr_device_class = DEVICE_CLASS # type: ignore
+
+    def __init__(self, coordinator: OcadoUpdateCoordinator, context: Any = None) -> None:
+        """Initialise the sensor."""
+        super().__init__(coordinator, context=context)
+        self.coordinator = coordinator
+        self.coordinator_context = context
+        self.device_id = "Ocado Deliveries"
+        self._hass_custom_attributes = {}
+        self._attr_name = "Ocado Last Total"
+        self._attr_unique_id = "ocado_last_total"
+        self._globalid = "ocado_last_total"
+        self._attr_icon = "mdi:receipt-text"
+        self._attr_state = None
+
+    async def async_added_to_hass(self):
+        _LOGGER.debug("Running async_added_to_hass")
+        await super().async_added_to_hass()
+
+    @property
+    def device_info(self) -> dict: # type: ignore
+        """Return device information for device registry."""
+        return {
+            "identifiers": {(DOMAIN, "deliveries")},
+            "name": "Ocado (UK) Deliveries",
+            "manufacturer": "Ocado-ha",
+            "model": "Delivery Sensor",
+            "sw_version": "1.0",
+        }
+
+    @property
+    def state(self) -> Any: # type: ignore
+        """Return the current state of the sensor."""
+        return self._attr_state
+
+    @property
+    def extra_state_attributes(self): # type: ignore
+        """Return the state attributes of the sensor."""
+        return self._hass_custom_attributes
+    
+    @property
+    def device_class(self): # type: ignore
+        """The type of sensor"""
+        return SensorDeviceClass.MONETARY
+    
+    @property
+    def native_unit_of_measurement(self): # type: ignore
+        """The unit of measurement of sensor"""
+        return "GBP"
+    
+    @callback
+    def _handle_coordinator_update(self) -> None:
+        """Fetch the latest data from the coordinator."""
+        _LOGGER.debug("Updating the last total sensor")
+        
+        ocado_data = self.coordinator.data
+        if not ocado_data:
+            _LOGGER.warning("Coordinator data is None for %s", self.entity_id)
+            self._attr_state = None
+            return
+        
+        now = datetime.now()
+        order = ocado_data.get("total")
+        if order is not None:
+            result = set_total(self, order, now) # noqa: F841
+        else:
+            self._attr_state = None
+            self._attr_icon = "mdi:help-circle"
+            self._hass_custom_attributes = {
+                "updated":      datetime.now(),
+                "order_number": None,
+            }
+        # Could hash the dicts for better comparison and to detect other changes.. but I think updated would change.
+        if self.entity_id is not None:
+            current = self.hass.states.get(self.entity_id)
+            new_updated = self._hass_custom_attributes.get("updated")
+            
+            if current is None:
+                self.async_write_ha_state()
+                return
+            
+            old_updated = current.attributes.get("updated")
+            _LOGGER.debug("Comparing with old attributes; old_updated = %s, while new_updated = %s", old_updated, new_updated)
+            if old_updated != new_updated: # type: ignore
+                _LOGGER.debug("Updating due to new attributes")
+                self.async_write_ha_state()
 
 
 class OcadoUpcoming(CoordinatorEntity, SensorEntity): # type: ignore
@@ -227,7 +364,7 @@ class OcadoUpcoming(CoordinatorEntity, SensorEntity): # type: ignore
 
     def __init__(self, coordinator: OcadoUpdateCoordinator, context: Any = None) -> None:
         """Initialise the sensor."""
-        # super().__init__(coordinator)
+        super().__init__(coordinator, context=context)
         self.coordinator = coordinator
         self.coordinator_context = context
         self.device_id = "Ocado Deliveries"
@@ -238,6 +375,10 @@ class OcadoUpcoming(CoordinatorEntity, SensorEntity): # type: ignore
         self._attr_icon = "mdi:cart-outline"
         self._attr_state = None
 
+    async def async_added_to_hass(self):
+        _LOGGER.debug("Running async_added_to_hass")
+        await super().async_added_to_hass()
+
     @property
     def device_info(self) -> dict: # type: ignore
         """Return device information for device registry."""
@@ -259,28 +400,49 @@ class OcadoUpcoming(CoordinatorEntity, SensorEntity): # type: ignore
         """Return the state attributes of the sensor."""
         return self._hass_custom_attributes
     
-    async def async_update(self) -> None:
+    @callback
+    def _handle_coordinator_update(self) -> None:
         """Fetch the latest data from the coordinator."""
-        await self.coordinator.async_request_refresh()
+        _LOGGER.debug("Handling coordinator update for %s", self.entity_id)
+        
         ocado_data = self.coordinator.data
+        if not ocado_data:
+            _LOGGER.warning("Coordinator data is None for %s", self.entity_id)
+            self._attr_state = None
+            return
+        
         now = datetime.now()
-        _LOGGER.debug("Updating Upcoming sensor")
-        if "upcoming" in ocado_data:
-            order = ocado_data.get("upcoming")
-            # If the latest order we have details about is before today, make it known.
+        order = ocado_data.get("upcoming")
+        
+        if order is not None:
             result = set_order(self, order, now) # type: ignore
-            if not result:
-                self._attr_state = None
-                self._attr_icon = "mdi:help-circle"
-                attributes = {
-                    "updated":      datetime.now(),
-                    "order_number": None,
-                    "delivery_datetime": None,
-                    "delivery_window": None,
-                    "edit_deadline": None,
-                    "estimated_total": None,
-                }
-                self._hass_custom_attributes = attributes
+            _LOGGER.debug("Set_order returned %s", result)
+        else:            
+            self._attr_state = None
+            self._attr_icon = "mdi:help-circle"
+            self._hass_custom_attributes = {
+                "updated":      datetime.now(),
+                "order_number": None,
+                "delivery_datetime": None,
+                "delivery_window": None,
+                "edit_deadline": None,
+                "estimated_total": None,
+            }
+        # Could hash the dicts for better comparison and to detect other changes.. but I think updated would change.
+        if self.entity_id is not None:
+            current = self.hass.states.get(self.entity_id)
+            new_updated = self._hass_custom_attributes.get("updated")
+            
+            if current is None:
+                self.async_write_ha_state()
+                return
+            
+            old_updated = current.attributes.get("updated")
+            _LOGGER.debug("Comparing with old attributes; old_updated = %s, while new_updated = %s", old_updated, new_updated)
+            if old_updated != new_updated: # type: ignore
+                _LOGGER.debug("Updating due to new attributes")
+                self.async_write_ha_state()
+
 
 
 class OcadoOrderList(CoordinatorEntity, SensorEntity): # type: ignore
@@ -293,7 +455,7 @@ class OcadoOrderList(CoordinatorEntity, SensorEntity): # type: ignore
 
     def __init__(self, coordinator: OcadoUpdateCoordinator, context: Any = None) -> None:
         """Initialise the sensor."""
-        # super().__init__(coordinator)
+        super().__init__(coordinator, context=context)
         self.coordinator = coordinator
         self.coordinator_context = context
         self.device_id = "Ocado Deliveries"
@@ -303,6 +465,10 @@ class OcadoOrderList(CoordinatorEntity, SensorEntity): # type: ignore
         self._globalid = "ocado_orders"
         self._attr_icon = "mdi:cart-outline"
         self._attr_state = None
+
+    async def async_added_to_hass(self):
+        _LOGGER.debug("Running async_added_to_hass")
+        await super().async_added_to_hass()
 
     @property
     def device_info(self) -> dict: # type: ignore
@@ -325,13 +491,18 @@ class OcadoOrderList(CoordinatorEntity, SensorEntity): # type: ignore
         """Return the state attributes of the sensor."""
         return self._hass_custom_attributes
     
-    async def async_update(self) -> None:
+    @callback
+    def _handle_coordinator_update(self) -> None:
         """Fetch the latest data from the coordinator."""
-        await self.coordinator.async_request_refresh()
+        
         ocado_data = self.coordinator.data
-        if "orders" in ocado_data:
-            orders = ocado_data.get("orders",[])
-
+        if not ocado_data:
+            _LOGGER.warning("Coordinator data is None for %s", self.entity_id)
+            self._attr_state = None
+            return
+        
+        orders = ocado_data.get("orders")
+        if orders is not None:
             self._attr_state = datetime.now() # type: ignore
             self._attr_icon = "mdi:clipboard-list"
             json_orders = []
@@ -340,6 +511,26 @@ class OcadoOrderList(CoordinatorEntity, SensorEntity): # type: ignore
             self._hass_custom_attributes = {
                 "orders": json_orders
             }
+        else:
+            self._attr_state = None
+            self._attr_icon = "mdi:help-circle"
+            self._hass_custom_attributes = {
+                "orders": []
+            }
+        # Could hash the dicts for better comparison and to detect other changes.. but I think updated would change.
+        if self.entity_id is not None:
+            current = self.hass.states.get(self.entity_id)
+            new_updated = self._hass_custom_attributes.get("updated")
+            
+            if current is None:
+                self.async_write_ha_state()
+                return
+            
+            old_updated = current.attributes.get("updated")
+            _LOGGER.debug("Comparing with old attributes; old_updated = %s, while new_updated = %s", old_updated, new_updated)
+            if old_updated != new_updated: # type: ignore
+                _LOGGER.debug("Updating due to new attributes")
+                self.async_write_ha_state()
 
 
 class OcadoBBDs(SensorEntity):
@@ -347,9 +538,9 @@ class OcadoBBDs(SensorEntity):
 
     _attr_device_class = DEVICE_CLASS # type: ignore
 
-    def __init__(self, coordinator: OcadoUpdateCoordinator, day: str) -> None:
+    def __init__(self, coordinator: OcadoUpdateCoordinator, day: str, context: Any = None,) -> None:
         """Initialise the sensor."""
-        # super().__init__(coordinator)
+        super().__init__(coordinator, context=context) # type: ignore
         self.coordinator = coordinator
         self.device_id = "Ocado BBDs"
         self._hass_custom_attributes = {}
@@ -358,6 +549,10 @@ class OcadoBBDs(SensorEntity):
         # self._globalid = "ocado_bbds"
         self._attr_icon = "mdi:cart-outline"
         self._attr_state = None
+
+    async def async_added_to_hass(self):
+        _LOGGER.debug("Running async_added_to_hass")
+        await super().async_added_to_hass()
 
     @property
     def device_info(self) -> dict: # type: ignore
@@ -380,15 +575,28 @@ class OcadoBBDs(SensorEntity):
         """Return the state attributes of the sensor."""
         return self._hass_custom_attributes
     
-    async def async_update(self) -> None:
+    @callback
+    def _handle_coordinator_update(self) -> None:
         """Fetch the latest data from the coordinator."""
-        await self.coordinator.async_request_refresh()
+        _LOGGER.debug("Handling coordinator update for %s", self.entity_id)
+        
         ocado_data = self.coordinator.data
-        if "orders" in ocado_data:
-            orders = ocado_data.get("orders",[])
-
+        if not ocado_data:
+            _LOGGER.warning("Coordinator data is None for %s", self.entity_id)
+            self._attr_state = None
+            return
+        
+        orders = ocado_data.get("orders")
+        if orders is not None:
             self._attr_state = datetime.now() # type: ignore
             self._attr_icon = "mdi:clipboard-list"
             self._hass_custom_attributes = {
                 "orders": orders
+                
+            }
+        else:
+            self._attr_state = None
+            self._attr_icon = "mdi:help-circle"
+            self._hass_custom_attributes = {
+                "orders": []
             }

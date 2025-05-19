@@ -6,6 +6,7 @@ from email.policy import default as default_policy
 from imaplib import IMAP4_SSL as imap
 import logging
 import re
+from typing import Any
 
 from dateutil.parser import parse
 
@@ -49,7 +50,7 @@ def get_email_from_datetime(email_date_raw: str) -> date:
 def get_estimated_total(message: str) -> str:
     """Find and return the estimated total from a 'what you returned' email."""
     pattern = r"Total\s\(estimated\):\s{1,20}(?P<total>\d+.\d{2})\sGBP"
-    raw = re.search(pattern ,message)
+    raw = re.search(pattern, message)
     if raw:
         return raw.group('total')
     _LOGGER.error("Failed to parse estimated total from message.")
@@ -120,9 +121,9 @@ def capitalise(text: str) -> str:
 
 
 # reversed so that we start with the newest message and break on it
-def email_triage(self) -> OcadoEmails:
-    # imap_account_email: str,imap_account_password: str,imap_server: str, imap_port: int, imap_folder: str, imap_days: int) -> OcadoEmails:
+def email_triage(self) -> tuple[list[Any], OcadoEmails | None]:
     """Access the IMAP inbox and retrieve all the relevant Ocado UK emails from the last month."""
+    _LOGGER.debug("Beginning email triage")
     today = date.today()
     server = imap(host = self.imap_host, port = self.imap_port, timeout= 30)
     server.login(self.email_address, self.password)
@@ -135,15 +136,16 @@ def email_triage(self) -> OcadoEmails:
     ocado_cancelled =           []
     ocado_confirmations =       []
     ocado_confirmed_orders =    []
-    ocado_totalled_orders =     []
-    ocado_new_totals =          []
-    ocado_receipts =            []
-    # total = len(message_ids[0].split())
-    # _LOGGER.debug("Beginning triaging of %s emails retrieved.", str(total))
-    # i = 0
+    ocado_total =               None
+    ocado_receipt =             None
+    # Check the previous message ids and return the old state if they're the same
+    if self.data is not None:
+        if self.data.get("message_ids") == message_ids:
+            _LOGGER.debug("Returning previous state, since message_ids are unchanged.")
+            server.close()
+            server.logout()
+            return message_ids, None
     for message_id in reversed(message_ids[0].split()):
-        # i += 1
-        # _LOGGER.debug("Starting on message %s/%s", str(i), str(total))
         result, message_data = server.fetch(message_id,"(RFC822)")
         if message_data is None:
             continue
@@ -151,46 +153,40 @@ def email_triage(self) -> OcadoEmails:
         ocado_email = _parse_email(message_id, message_data) # type: ignore
         # If the type of email is a cancellation, add the order number to check for later
         if ocado_email.type == "cancellation":
-            # _LOGGER.debug("Cancellation email found and added to cancelled orders.")
             ocado_cancelled.append(ocado_email.order_number)
         # If the order number isn't in the list of cancelled order numbers
         if ocado_email.order_number not in ocado_cancelled:
             # This is done first, since if the order number exists already from a confirmation, we still want to add the receipt.
             if ocado_email.type == "receipt":
                 # We only care about the most recent receipt
-                if len(ocado_receipts) == 0:
-                    # _LOGGER.debug("Ocado order (%s) added to receipts.", ocado_email.order_number)
-                    ocado_receipts.append(ocado_email)                    
+                if ocado_receipt is None:
+                    ocado_receipt = ocado_email
                     # TODO add code to download the receipt attachment
-                    # ocado_email.message_id
             elif ocado_email.type == "confirmation":
                 # Make sure we're not adding an older version of an order we already have
-                # _LOGGER.debug("Confirmed order is not in the list of confirmed orders? %s", ocado_email.order_number not in ocado_confirmed_orders)
                 if ocado_email.order_number not in ocado_confirmed_orders:
                     ocado_confirmed_orders.append(ocado_email.order_number)
-                    # _LOGGER.debug("Ocado order (%s) added to confirmations.", ocado_email.order_number)
                     ocado_confirmations.append(ocado_email)
             elif ocado_email.type == "new_total":
-                # Make sure we're not adding an older version of an order we already have
-                if ocado_email.order_number not in ocado_totalled_orders:
-                    ocado_totalled_orders.append(ocado_email.order_number)
-                    # _LOGGER.debug("Ocado order (%s) added to totals.", ocado_email.order_number)
-                    ocado_new_totals.append(ocado_email)
+                # We only care about the most recent new total
+                if ocado_total is None:
+                    ocado_confirmed_orders.append(ocado_email.order_number)
+                    ocado_total = ocado_email
 
 
     server.close()
     server.logout()
-    _LOGGER.debug("Finished with IMAP and closed the connection.")
-    # Combine the order numbers in case the lists aren't the same.
-    ocado_orders = ocado_confirmed_orders + list(set(ocado_totalled_orders) - set(ocado_confirmed_orders))
+    # It's possible the total order number is repeated, so remove it
+    ocado_orders = list(set(ocado_confirmed_orders))
     triaged_emails = OcadoEmails(
         orders = ocado_orders,
         cancelled = ocado_cancelled,
         confirmations = ocado_confirmations,
-        new_totals = ocado_new_totals,
-        receipts = ocado_receipts,
+        total = ocado_total,
+        receipt = ocado_receipt,
     )
-    return triaged_emails
+    _LOGGER.debug("Returning triaged emails")
+    return message_ids, triaged_emails
 
 
 def _ocado_email_typer(subject: str) -> str:
@@ -231,10 +227,54 @@ def _parse_email(message_id: bytes, message_data: bytes) -> OcadoEmail:
     return ocado_email
 
 
+def total_parse(ocado_email: OcadoEmail) -> OcadoOrder:
+    """Parse an Ocado total email into an OcadoOrder object."""
+    # TODO return order number and actual total.
+    message = ocado_email.body
+    if message is None:
+        return EMPTY_ORDER
+    pattern = r"New\sorder\stotal:\s{1,20}(?P<total>\d+.\d{1,2})\sGBP"
+    raw = re.search(pattern, message)
+    if raw:
+        total = raw.group("total")
+    else:
+        total = None
+    total = OcadoOrder(
+        updated             = ocado_email.date,
+        order_number        = ocado_email.order_number,
+        delivery_datetime   = None,
+        delivery_window_end = None,
+        edit_datetime       = None,
+        estimated_total     = total,
+    )
+    return total
+
+
 def receipt_parse(ocado_email: OcadoEmail) -> OcadoOrder:
     """Parse an Ocado receipt email into an OcadoOrder object."""
-    # TODO return order number and actual total.
+    # TODO return BBD info.
+    # message = ocado_email.body
+    # if message is None:
+    #     return EMPTY_ORDER
+    # _LOGGER.debug("Trying to find receit total in %s", message)
+    # pattern = r"New\sorder\stotal:\s{1,20}(?P<total>\d+.\d{1,2})\sGBP"
+    # raw = re.search(pattern, message)
+    # _LOGGER.debug("Found %s", raw)
+    # if raw:
+    #     total = raw.group("total")
+    #     _LOGGER.debug("Found total = %s", total)
+    # else:
+    #     total = None
+    # recent_order = OcadoOrder(
+    #     updated             = ocado_email.date,
+    #     order_number        = ocado_email.order_number,
+    #     delivery_datetime   = None,
+    #     delivery_window_end = None,
+    #     edit_datetime       = None,
+    #     estimated_total     = total,
+    # )
     return EMPTY_ORDER
+
 
 def order_parse(ocado_email: OcadoEmail) -> OcadoOrder:
     """Parse an Ocado confirmation email into an OcadoOrder object."""
@@ -242,7 +282,6 @@ def order_parse(ocado_email: OcadoEmail) -> OcadoOrder:
     if message is None:
         return EMPTY_ORDER
     delivery_datetime, delivery_window_end = get_delivery_datetimes(message)
-    # _LOGGER.debug("Successfully retrieved delivery_datetime, and delivery_window_end as %s, %s.", str(delivery_datetime), str(delivery_window_end))
     order = OcadoOrder(
         updated             = ocado_email.date,
         order_number        = ocado_email.order_number,
@@ -251,7 +290,6 @@ def order_parse(ocado_email: OcadoEmail) -> OcadoOrder:
         edit_datetime       = get_edit_datetime(message),
         estimated_total     = get_estimated_total(message),
     )
-    # _LOGGER.debug("Returning parsed order: %s, %s, %s, %s, %s, %s", order.updated, order.order_number, str(order.delivery_datetime), str(order.delivery_window_end), str(order.edit_datetime), order.estimated_total)
     return order
 
 
@@ -277,38 +315,26 @@ def get_window(delivery_datetime: datetime, delivery_window_end: datetime) -> st
 def sort_orders(orders: list[OcadoOrder]) -> tuple[OcadoOrder, OcadoOrder]:
     """Sorts the list of orders and returns the next and upcoming orders."""
     # First, sort by the date, but note that the first order could be in the distant future.
-    # _LOGGER.debug("Initial sort by delivery_datetime.")
-    # for order in orders:
-    #     _LOGGER.debug("Order %s", order.order_number)
     orders.sort(key=lambda item:item.delivery_datetime) # type: ignore
     orders.reverse()
-    _LOGGER.debug("Completed initial sort.")
-    # for order in orders:
-    #     _LOGGER.debug("Order %s", order.delivery_datetime)
-    # so do a for loop, if delivery_datetime is >= today, then do a diff and check against the current diff?
     # There's probably a better way of doing this..
     today = date.today()
-    # _LOGGER.debug("Using today = %s", str(today))
+    now = datetime.now()
     diff = 2**32
     next = EMPTY_ORDER
     upcoming = EMPTY_ORDER
-    i = 0
-    total = len(orders)
-    
     try:
         for order in orders:
-            i += 1
-            _LOGGER.debug("Sorting with order %s/%s", i, total)            
-            if order.delivery_datetime is not None:
+            if (order.delivery_datetime is not None) and (order.delivery_window_end is not None):
                 order_date = order.delivery_datetime.date()
-                _LOGGER.debug("Order date is %s", str(order_date))
                 if order_date >= today:
+                    # If the order is today, check if it's been delivered
+                    if order_date == today:
+                        if  order.delivery_window_end < now:
+                            continue
                     order_diff = (order_date - today).days
-                    _LOGGER.debug("order diff is %s", order_diff)
-                    # Could have more than one order in a day.. Surely not?!
-                    _LOGGER.debug("Checking diff to see if this is the closest email.")
+                    # Could have more than one order in a day.. Going to ignore that case
                     if order_diff < diff:
-                        _LOGGER.debug("Order diff is smaller!")
                         upcoming = next
                         next = order
                         diff = order_diff
@@ -321,16 +347,14 @@ def sort_orders(orders: list[OcadoOrder]) -> tuple[OcadoOrder, OcadoOrder]:
 
 def set_order(self, order: OcadoOrder, now: datetime) -> bool:
     """This function validates an order is in the future and sets the state and attributes if it is."""
+    _LOGGER.debug("Setting order")
     if (order.delivery_window_end is not None) and (order.delivery_datetime is not None):
         today = now.date()
-        _LOGGER.debug("Order has both datetimes needed.")
-        _LOGGER.debug("Order has datetime check: %s is >= %s?: %s", order.delivery_window_end, now, order.delivery_window_end >= now)
         if order.delivery_window_end >= now:
-            _LOGGER.debug("Order is in the future.")
             days_until_next_delivery = (order.delivery_datetime.date() - today).days
             self._attr_state = order.delivery_datetime.date()
             self._attr_icon = iconify(days_until_next_delivery)
-            attributes = {
+            self._hass_custom_attributes = {
                 "updated"               : order.updated,
                 "order_number"          : order.order_number,
                 "delivery_datetime"     : order.delivery_datetime,
@@ -338,13 +362,13 @@ def set_order(self, order: OcadoOrder, now: datetime) -> bool:
                 "edit_deadline"         : order.edit_datetime,
                 "estimated_total"       : order.estimated_total,
             }
-            self._hass_custom_attributes = attributes
             return True
     _LOGGER.debug("Order is not in the future.")
     return False
 
 def set_edit_order(self, order: OcadoOrder, now: datetime) -> bool:
     """This function validates an order is in the future and sets the state and attributes if it is."""
+    _LOGGER.debug("Setting edit order")
     if (order.edit_datetime is not None):
         today = now.date()
         if order.edit_datetime >= now:
@@ -357,4 +381,34 @@ def set_edit_order(self, order: OcadoOrder, now: datetime) -> bool:
             }
             self._hass_custom_attributes = attributes
             return True
+    return False
+
+
+def set_total(self, order: OcadoOrder, now: datetime) -> bool:
+    """This function validates an order is in the future and sets the state and attributes if it is."""
+    _LOGGER.debug("Setting total order")
+    if (order.estimated_total is not None):
+            self._attr_state = str(order.estimated_total)
+            self._attr_icon = "mdi:receipt-text"
+            attributes = {
+                "updated"               : order.updated,
+                "order_number"          : order.order_number,
+            }
+            self._hass_custom_attributes = attributes
+            return True
+    return False
+
+
+def set_receipt(self, order: OcadoOrder, now: datetime) -> bool:
+    """This function validates an order is in the future and sets the state and attributes if it is."""
+    _LOGGER.debug("Setting receipt")
+    # if (order.estimated_total is not None):
+    #         self._attr_state = order.estimated_total
+    #         self._attr_icon = "mdi:receipt-text"
+    #         attributes = {
+    #             "updated"               : order.updated,
+    #             "order_number"          : order.order_number,
+    #         }
+    #         self._hass_custom_attributes = attributes
+    #         return True
     return False
