@@ -1,4 +1,4 @@
-name: My Workflow
+name: Update Manifest
 on: [pull_request]
 jobs:
   update_manifest:
