@@ -1,32 +1,45 @@
-name: Update Manifest
+name: PR CI - Draft Release & Update Manifest
 on:
   pull_request:
     types: [opened, synchronize]
+
+permissions:
+  contents: write
+  pull-requests: write
+
 jobs:
-  update_manifest:
+  draft_and_update_manifest:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
+    if: github.event.pull_request.head.repo.full_name == github.repository
     # needs: 
+
     steps:
-      - name: checkout
-      - uses: actions/checkout@v3
-      - name: get_version
-        id: get_version
+      - name: Checkout PR branch
+        uses: actions/checkout@v3
+        with:
+          ref: ${{ github.head_ref }}
+
+      - name: Run Release Drafter
+        uses: release-drafter/release-drafter@v6
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}      
+      
+      - name: Get latest draft release tag
+        id: get_draft_tag
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           RELEASE=$(gh api repos/${{ github.repository }}/releases \
             --jq '[.[] | select(.draft==true)] | sort_by(.created_at) | last')
-          
+
           if [ "$RELEASE" == "null" ]; then
             echo "No draft release found"
             exit 1
           fi
 
           TAG=$(echo "$RELEASE" | jq -r .tag_name)
-          echo "Found draft release with tag: $TAG"
           echo "RELEASE_TAG=$TAG" >> $GITHUB_ENV
+
       - name: Find and Replace
         uses: jacobtomlinson/gha-find-replace@v3
         with:
@@ -34,7 +47,8 @@ jobs:
           replace: '"version": "${{ env.RELEASE_TAG }}"'
           include: "manifest.json"
           regex: True
+
       - name: Push changes
         uses: stefanzweifel/git-auto-commit-action@v4
         with:
-          commit_message: "chore: update manifest version to ${{ env.VERSION }}"
+          commit_message: "chore: update manifest version to ${{ env.RELEASE_TAG }}"
