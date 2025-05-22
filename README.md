@@ -1,6 +1,7 @@
 [![release](https://img.shields.io/github/v/release/PineappleEmperor/ocado-ha)](https://github.com/PineappleEmperor/ocado-ha/releases)
 [![commits-since-latest](https://img.shields.io/github/commits-since/PineappleEmperor/ocado-ha/latest?style=flat-square)](https://github.com/PineappleEmperor/ocado-ha/commits/main/)
 ![stars](https://img.shields.io/github/stars/PineappleEmperor/ocado-ha?style=flat)
+![GitHub Downloads (all assets, all releases)](https://img.shields.io/github/downloads/PineappleEmperor/ocado-ha/total)
 \
 [![Python package](https://github.com/PineappleEmperor/ocado-ha/actions/workflows/python_validate.yml/badge.svg?branch=main)](https://github.com/PineappleEmperor/ocado-ha/actions/workflows/python_validate.yml)
 [![Validate with hassfest](https://github.com/PineappleEmperor/ocado-ha/actions/workflows/hassfest_validate.yml/badge.svg?branch=main)](https://github.com/PineappleEmperor/ocado-ha/actions/workflows/hassfest_validate.yml)
