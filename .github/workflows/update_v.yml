@@ -1,17 +1,40 @@
 name: Update Manifest
-on: [pull_request]
+on:
+  pull_request:
+    types: [opened, synchronize]
 jobs:
   update_manifest:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     # needs: 
     steps:
-      - uses: actions/checkout@v2
+      - name: checkout
+      - uses: actions/checkout@v3
+      - name: get_version
+        id: get_version
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          RELEASE=$(gh api repos/${{ github.repository }}/releases \
+            --jq '[.[] | select(.draft==true)] | sort_by(.created_at) | last')
+          
+          if [ "$RELEASE" == "null" ]; then
+            echo "No draft release found"
+            exit 1
+          fi
+
+          TAG=$(echo "$RELEASE" | jq -r .tag_name)
+          echo "Found draft release with tag: $TAG"
+          echo "RELEASE_TAG=$TAG" >> $GITHUB_ENV
       - name: Find and Replace
         uses: jacobtomlinson/gha-find-replace@v3
         with:
           find: '"version": "v\d+\.\d+.\d+"'
-          replace: '"version": "v{{}}"'
+          replace: '"version": "${{ env.RELEASE_TAG }}"'
           include: "manifest.json"
           regex: True
       - name: Push changes
         uses: stefanzweifel/git-auto-commit-action@v4
+        with:
+          commit_message: "chore: update manifest version to ${{ env.VERSION }}"
