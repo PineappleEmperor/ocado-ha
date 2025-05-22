@@ -5,7 +5,7 @@
 [![Python package](https://github.com/PineappleEmperor/ocado-ha/actions/workflows/python_validate.yml/badge.svg?branch=main)](https://github.com/PineappleEmperor/ocado-ha/actions/workflows/python_validate.yml)
 [![Validate with hassfest](https://github.com/PineappleEmperor/ocado-ha/actions/workflows/hassfest_validate.yml/badge.svg?branch=main)](https://github.com/PineappleEmperor/ocado-ha/actions/workflows/hassfest_validate.yml)
 [![HACS Action](https://github.com/PineappleEmperor/ocado-ha/actions/workflows/hacs_validate.yml/badge.svg?branch=main)](https://github.com/PineappleEmperor/ocado-ha/actions/workflows/hacs_validate.yml)
-[![hacs_badge](https://img.shields.io/badge/HACS-Custom-41BDF5.svg?style=for-the-badge)](https://github.com/hacs/integration)
+[![hacs_badge](https://img.shields.io/badge/HACS-Custom-41BDF5.svg?style=flat-square)](https://github.com/hacs/integration)
 
 Ocado UK Integration for Home Assistant
 =====================================
