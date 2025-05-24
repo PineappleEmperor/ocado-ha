@@ -182,6 +182,9 @@ class OcadoDelivery(CoordinatorEntity, SensorEntity): # type: ignore
             if old_updated != new_updated: # type: ignore
                 _LOGGER.debug("Updating due to new attributes")
                 self.async_write_ha_state()
+            elif current.attributes.get("next").edit_datetime < now: # type: ignore
+                _LOGGER.debug("Updating due to edit deadline passed")
+                self.async_write_ha_state()
 
 
 class OcadoEdit(CoordinatorEntity, SensorEntity): # type: ignore
@@ -263,6 +266,9 @@ class OcadoEdit(CoordinatorEntity, SensorEntity): # type: ignore
             _LOGGER.debug("Comparing with old attributes; old_updated = %s, while new_updated = %s", old_updated, new_updated)
             if old_updated != new_updated: # type: ignore
                 _LOGGER.debug("Updating due to new attributes")
+                self.async_write_ha_state()
+            elif current.attributes.get("next").edit_datetime < now: # type: ignore
+                _LOGGER.debug("Updating due to edit deadline passed")
                 self.async_write_ha_state()
 
 
