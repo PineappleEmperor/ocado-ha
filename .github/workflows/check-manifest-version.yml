@@ -126,19 +126,28 @@ jobs:
             💡 No \`breaking feature\`, \`feature\`, or \`fix\` label was found — please add one to indicate the type of change."
           fi
 
+          # Find comment by this bot with the version-check marker
+          COMMENT_ID=$(gh api repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/comments \
+            --jq '.[] | select(.body | contains("<!-- version-check -->")) | select(.user.type == "Bot") | .id')
+      
           if [ -n "$COMMENT_ID" ]; then
-            echo "📝 Updating existing comment..."
-            gh pr comment ${{ github.event.pull_request.number }} --edit "$COMMENT_ID" --body "$MSG"
+            echo "📝 Updating existing comment ID $COMMENT_ID"
+            gh api \
+              --method PATCH \
+              -H "Accept: application/vnd.github+json" \
+              /repos/${{ github.repository }}/issues/comments/$COMMENT_ID \
+              -f body="$MSG"
           else
-            echo "💬 Creating new comment..."
+            echo "💬 Creating new comment"
             gh pr comment ${{ github.event.pull_request.number }} --body "$MSG"
           fi
+    
           # Fail the job
           echo "❌ Version mismatch - failing the workflow"
           exit 1
 
       - name: Comment if version number is incorrect
-        if: steps.bump.outputs.expected_version != format('v{0}', steps.compare.outputs.pr_version)
+        if: steps.bump.outputs.suggested_version != format('v{0}', steps.compare.outputs.pr_version)
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -164,19 +173,24 @@ jobs:
             💡 No \`breaking feature\`, \`feature\`, or \`fix\` label was found — please add one to indicate the type of change."
           fi
 
-          # Get existing bot comments with the version-check marker
-          COMMENT_ID=$(gh pr view ${{ github.event.pull_request.number }} --json comments -q \
-            '.comments[] | select(.author.login == "github-actions[bot]") | select(.body | contains("<!-- version-check -->")) | .id')
-
+          # Find comment by this bot with the version-check marker
+          COMMENT_ID=$(gh api repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/comments \
+            --jq '.[] | select(.body | contains("<!-- version-check -->")) | select(.user.type == "Bot") | .id')
+      
           if [ -n "$COMMENT_ID" ]; then
-            echo "📝 Updating existing comment..."
-            gh pr comment ${{ github.event.pull_request.number }} --edit "$COMMENT_ID" --body "$MSG"
+            echo "📝 Updating existing comment ID $COMMENT_ID"
+            gh api \
+              --method PATCH \
+              -H "Accept: application/vnd.github+json" \
+              /repos/${{ github.repository }}/issues/comments/$COMMENT_ID \
+              -f body="$MSG"
           else
-            echo "💬 Creating new comment..."
+            echo "💬 Creating new comment"
             gh pr comment ${{ github.event.pull_request.number }} --body "$MSG"
           fi
+          
           # Fail the job
           echo "❌ Version mismatch - failing the workflow"
-          echo "pr_version=$PR_VERSION"
+          echo "pr_version=v$PR_VERSION"
           echo "suggested_version=$NEW_VERSION"
           exit 1
