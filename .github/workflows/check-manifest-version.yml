@@ -2,7 +2,7 @@ name: Check Manifest Version Bump
 
 on:
   pull_request:
-    types: [opened, synchronize, reopened, labeled]
+    types: [opened, synchronize, reopened, labeled, unlabeled]
 
 permissions:
   contents: read
@@ -30,10 +30,10 @@ jobs:
         id: compare
         run: |
           BASE_VERSION=$(jq -r '.version' ../manifest_base.json)
-          CURRENT_VERSION=$(jq -r '.version' custom_components/ocado/manifest.json)
+          PR_VERSION=$(jq -r '.version' custom_components/ocado/manifest.json)
 
           echo "Base version: $BASE_VERSION"
-          echo "Current version: $CURRENT_VERSION"
+          echo "PR version: $PR_VERSION"
 
           if [ "$BASE_VERSION" == "$CURRENT_VERSION" ]; then
             echo "unchanged=true" >> $GITHUB_OUTPUT
@@ -44,7 +44,6 @@ jobs:
 
       - name: Determine bump type from PR labels
         id: bump
-        if: steps.compare.outputs.unchanged == 'true'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -73,19 +72,19 @@ jobs:
           fi
 
           if [ "$BUMP" = "breaking feature" ]; then
-            NEW_VERSION="v$((MAJOR+1)).0.0"
+            EXPECTED_VERSION="v$((MAJOR+1)).0.0"
           elif [ "$BUMP" = "feature" ]; then
-            NEW_VERSION="v$MAJOR.$((MINOR+1)).0"
+            EXPECTED_VERSION="v$MAJOR.$((MINOR+1)).0"
           elif [ "$BUMP" = "fix" ]; then
-            NEW_VERSION="v$MAJOR.$((MINOR+1)).0"
+            EXPECTED_VERSION="v$MAJOR.$((MINOR+1)).0"
           elif [ "$BUMP" = "patch" ]; then
-            NEW_VERSION="v$MAJOR.$MINOR.$((PATCH+1))"
+            EXPECTED_VERSION="v$MAJOR.$MINOR.$((PATCH+1))"
           else
-            NEW_VERSION=""
+            EXPECTED_VERSION=""
           fi
 
           echo "RECOMMENDED_BUMP=$BUMP" >> $GITHUB_OUTPUT
-          echo "SUGGESTED_VERSION=$NEW_VERSION" >> $GITHUB_OUTPUT
+          echo "SUGGESTED_VERSION=$EXPECTED_VERSION" >> $GITHUB_OUTPUT
 
       - name: Comment on PR if version unchanged
         if: steps.compare.outputs.unchanged == 'true'
@@ -95,6 +94,26 @@ jobs:
           BUMP_TYPE="${{ steps.bump.outputs.RECOMMENDED_BUMP }}"
           NEW_VERSION="${{ steps.bump.outputs.SUGGESTED_VERSION }}"
           MSG="⚠️ **Version in \`custom_components/ocado/manifest.json\` has not been updated.**
+
+          Please update the \`version\` field according to [Semantic Versioning](https://semver.org/)."
+
+          if [ "$BUMP_TYPE" != "none" ]; then
+            MSG+="\n\n🔍 Based on the PR labels, a **$BUMP_TYPE** version bump is recommended."
+            MSG+="\n💡 Suggested new version: \`$NEW_VERSION\`"
+          else
+            MSG+="\n\n💡 No \`breaking feature\`, \`feature\`, or \`fix\` label was found — please add one to indicate the type of change."
+          fi
+
+          gh pr comment ${{ github.event.pull_request.number }} --body "$MSG"
+
+      - name: Comment if version number is incorrect
+        if: steps.bump.outputs.expected_version != format('v{0}', steps.versions.outputs.pr_version)
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          BUMP_TYPE="${{ steps.bump.outputs.RECOMMENDED_BUMP }}"
+          NEW_VERSION="${{ steps.bump.outputs.SUGGESTED_VERSION }}"
+          MSG="⚠️ **Version in \`custom_components/ocado/manifest.json\` seems incorrect.**
 
           Please update the \`version\` field according to [Semantic Versioning](https://semver.org/)."
 
