@@ -414,5 +414,12 @@ def set_receipt(self, order: OcadoOrder, now: datetime) -> bool:
     #         return True
     return False
 
+
+def convert_datetime(obj):
+    if isinstance(obj, datetime):
+        return obj.isoformat()
+    raise TypeError("Type not serializable")
+
+
 def detect_attr_changes(d1: dict,d2: dict) -> bool:
-    return hash(json.dumps(d1, sort_keys=True)) != hash(json.dumps(d2, sort_keys=True))
+    return hash(json.dumps(d1, sort_keys=True, default=convert_datetime)) != hash(json.dumps(d2, sort_keys=True, default=convert_datetime))
