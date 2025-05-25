@@ -1,4 +1,4 @@
 feature: ['feature/*', 'feat/*']
-!feature: ['!feature/*', '!feat/*']
+xfeature: ['!feature/*', '!feat/*']
 fix: fix/*
 chore :hammer:: chore/*
