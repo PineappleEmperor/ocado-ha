@@ -5,6 +5,8 @@ categories:
     labels:
       - 'feat'
       - 'feature'
+      - '!feat'
+      - '!feature'
       - 'enhancement'
   - title: '🐛 Bug Fixes'
     labels:
@@ -19,12 +21,20 @@ version-resolver:
   major:
     labels:
       - 'major'
+      - '!feature'
+      - '!feat'
   minor:
     labels:
       - 'minor'
+      - 'feat'
+      - 'feature'
   patch:
     labels:
       - 'patch'
+      - 'fix'
+      - 'chore'
+      - 'bugfix'
+      - 'bug'
   default: patch
 template: |
   ## Changes
