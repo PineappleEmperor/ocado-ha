@@ -67,7 +67,7 @@ class OcadoUpdateCoordinator(DataUpdateCoordinator):
         _LOGGER.debug("Beginning coordinator update")
         try:            
             # Add a way to determine if a BBD is needed -> delivery within 7days?
-            # Retrieve all the Ocado order confirmations from the last imap_days
+            # Retrieve all the Ocado order confirmations from the last imap_days, will return None if there are no new emails
             message_ids, triaged_emails = email_triage(self)
             if triaged_emails is None:
                 _LOGGER.debug("Returning old state data since no new message_ids")

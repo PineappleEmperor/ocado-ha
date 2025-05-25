@@ -4,6 +4,7 @@ from datetime import date, datetime, timedelta
 import email
 from email.policy import default as default_policy
 from imaplib import IMAP4_SSL as imap
+import json
 import logging
 import re
 from typing import Any
@@ -412,3 +413,6 @@ def set_receipt(self, order: OcadoOrder, now: datetime) -> bool:
     #         self._hass_custom_attributes = attributes
     #         return True
     return False
+
+def detect_attr_changes(d1: dict,d2: dict) -> bool:
+    return hash(json.dumps(d1, sort_keys=True)) != hash(json.dumps(d2, sort_keys=True))

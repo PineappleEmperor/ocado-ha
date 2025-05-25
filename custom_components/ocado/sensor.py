@@ -36,6 +36,7 @@ from .utils import (
     set_edit_order,
     # set_receipt,
     set_total,
+    detect_attr_changes,
 )
 
 PLATFORMS = [Platform.SENSOR]
@@ -147,9 +148,17 @@ class OcadoDelivery(CoordinatorEntity, SensorEntity): # type: ignore
         
         ocado_data = self.coordinator.data
         if not ocado_data:
-            _LOGGER.warning("Coordinator data is None for %s", self.entity_id)
-            self._attr_state = None
-            return
+            if self.entity_id is None:
+                _LOGGER.warning("Coordinator data is None for %s", self.entity_id)
+                self._attr_state = None
+                self._attr_icon = "mdi:help-circle"
+                self._hass_custom_attributes = {
+                    "updated":      datetime.now(),
+                    "order_number": None,
+                }
+                return
+            else:
+                return
         
         now = datetime.now()
         order = ocado_data.get("next") or ocado_data.get("upcoming")
@@ -168,20 +177,25 @@ class OcadoDelivery(CoordinatorEntity, SensorEntity): # type: ignore
                 "edit_deadline": None,
                 "estimated_total": None,
             }
-        # Could hash the dicts for better comparison and to detect other changes.. but I think updated would change.
+        # Check if the attributes need updating
         if self.entity_id is not None:
             current = self.hass.states.get(self.entity_id)
-            new_updated = self._hass_custom_attributes.get("updated")
+            new = self._hass_custom_attributes
             
             if current is None:
                 self.async_write_ha_state()
                 return
             
-            old_updated = current.attributes.get("updated")
-            _LOGGER.debug("Comparing with old attributes; old_updated = %s, while new_updated = %s", old_updated, new_updated)
-            if old_updated != new_updated: # type: ignore
+            old = current.attributes
+            if detect_attr_changes(new, old):
                 _LOGGER.debug("Updating due to new attributes")
                 self.async_write_ha_state()
+            # Now check if the edit deadline has passed
+            elif "next" in current.attributes:
+                if hasattr(current.attributes.get("next"),"edit_deadline"):
+                    if current.attributes.get("next").edit_deadline < now: # type: ignore
+                        _LOGGER.debug("Updating due to edit deadline passed")
+                        self.async_write_ha_state()
 
 
 class OcadoEdit(CoordinatorEntity, SensorEntity): # type: ignore
@@ -234,12 +248,27 @@ class OcadoEdit(CoordinatorEntity, SensorEntity): # type: ignore
         
         ocado_data = self.coordinator.data
         if not ocado_data:
-            _LOGGER.warning("Coordinator data is None for %s", self.entity_id)
-            self._attr_state = None
-            return
+            if self.entity_id is None:
+                _LOGGER.warning("Coordinator data is None for %s", self.entity_id)
+                self._attr_state = None
+                self._attr_icon = "mdi:help-circle"
+                self._hass_custom_attributes = {
+                    "updated":      datetime.now(),
+                    "order_number": None,
+                }
+                return
+            else:
+                return
         
         now = datetime.now()        
-        order = ocado_data.get("next") or ocado_data.get("upcoming")
+        # Switch between orders depending on edit deadlines or output None
+        order = ocado_data.get("next")
+        if (order is None) or (order.edit_deadline < now):
+            order = ocado_data.get("upcoming")
+            if order is not None:
+                if order.edit_deadline < now:
+                    order = None
+        
         if order is not None:
             result = set_edit_order(self, order, now) # type: ignore
             _LOGGER.debug("Set_order returned %s", result)
@@ -250,20 +279,25 @@ class OcadoEdit(CoordinatorEntity, SensorEntity): # type: ignore
                 "updated":      datetime.now(),
                 "order_number": None,
             }
-        # Could hash the dicts for better comparison and to detect other changes.. but I think updated would change.
+        # Check if the attributes need updating
         if self.entity_id is not None:
             current = self.hass.states.get(self.entity_id)
-            new_updated = self._hass_custom_attributes.get("updated")
+            new = self._hass_custom_attributes
             
             if current is None:
                 self.async_write_ha_state()
                 return
             
-            old_updated = current.attributes.get("updated")
-            _LOGGER.debug("Comparing with old attributes; old_updated = %s, while new_updated = %s", old_updated, new_updated)
-            if old_updated != new_updated: # type: ignore
+            old = current.attributes
+            if detect_attr_changes(new, old):
                 _LOGGER.debug("Updating due to new attributes")
                 self.async_write_ha_state()
+            # Now check if the edit deadline has passed
+            elif "next" in current.attributes:
+                if hasattr(current.attributes.get("next"),"edit_deadline"):
+                    if current.attributes.get("next").edit_deadline < now: # type: ignore
+                        _LOGGER.debug("Updating due to edit deadline passed")
+                        self.async_write_ha_state()
 
 
 class OcadoTotal(CoordinatorEntity, SensorEntity): # type: ignore
@@ -326,9 +360,17 @@ class OcadoTotal(CoordinatorEntity, SensorEntity): # type: ignore
         
         ocado_data = self.coordinator.data
         if not ocado_data:
-            _LOGGER.warning("Coordinator data is None for %s", self.entity_id)
-            self._attr_state = None
-            return
+            if self.entity_id is None:
+                _LOGGER.warning("Coordinator data is None for %s", self.entity_id)
+                self._attr_state = None
+                self._attr_icon = "mdi:help-circle"
+                self._hass_custom_attributes = {
+                    "updated":      datetime.now(),
+                    "order_number": None,
+                }
+                return
+            else:
+                return
         
         now = datetime.now()
         order = ocado_data.get("total")
@@ -341,20 +383,12 @@ class OcadoTotal(CoordinatorEntity, SensorEntity): # type: ignore
                 "updated":      datetime.now(),
                 "order_number": None,
             }
-        # Could hash the dicts for better comparison and to detect other changes.. but I think updated would change.
         if self.entity_id is not None:
             current = self.hass.states.get(self.entity_id)
-            new_updated = self._hass_custom_attributes.get("updated")
             
             if current is None:
                 self.async_write_ha_state()
                 return
-            
-            old_updated = current.attributes.get("updated")
-            _LOGGER.debug("Comparing with old attributes; old_updated = %s, while new_updated = %s", old_updated, new_updated)
-            if old_updated != new_updated: # type: ignore
-                _LOGGER.debug("Updating due to new attributes")
-                self.async_write_ha_state()
 
 
 class OcadoUpcoming(CoordinatorEntity, SensorEntity): # type: ignore
@@ -407,9 +441,17 @@ class OcadoUpcoming(CoordinatorEntity, SensorEntity): # type: ignore
         
         ocado_data = self.coordinator.data
         if not ocado_data:
-            _LOGGER.warning("Coordinator data is None for %s", self.entity_id)
-            self._attr_state = None
-            return
+            if self.entity_id is None:
+                _LOGGER.warning("Coordinator data is None for %s", self.entity_id)
+                self._attr_state = None
+                self._attr_icon = "mdi:help-circle"
+                self._hass_custom_attributes = {
+                    "updated":      datetime.now(),
+                    "order_number": None,
+                }
+                return
+            else:
+                return
         
         now = datetime.now()
         order = ocado_data.get("upcoming")
@@ -428,20 +470,26 @@ class OcadoUpcoming(CoordinatorEntity, SensorEntity): # type: ignore
                 "edit_deadline": None,
                 "estimated_total": None,
             }
-        # Could hash the dicts for better comparison and to detect other changes.. but I think updated would change.
+        # Check if the attributes need updating
         if self.entity_id is not None:
             current = self.hass.states.get(self.entity_id)
-            new_updated = self._hass_custom_attributes.get("updated")
+            new = self._hass_custom_attributes
             
             if current is None:
                 self.async_write_ha_state()
                 return
             
-            old_updated = current.attributes.get("updated")
-            _LOGGER.debug("Comparing with old attributes; old_updated = %s, while new_updated = %s", old_updated, new_updated)
-            if old_updated != new_updated: # type: ignore
+            old = current.attributes
+            if detect_attr_changes(new, old):
                 _LOGGER.debug("Updating due to new attributes")
                 self.async_write_ha_state()
+            # Now check if the edit deadline has passed
+            elif "next" in current.attributes:
+                if hasattr(current.attributes.get("next"),"edit_deadline"):
+                    if current.attributes.get("next").edit_deadline < now: # type: ignore
+                        _LOGGER.debug("Updating due to edit deadline passed")
+                        self.async_write_ha_state()
+            
 
 
 
@@ -497,9 +545,16 @@ class OcadoOrderList(CoordinatorEntity, SensorEntity): # type: ignore
         
         ocado_data = self.coordinator.data
         if not ocado_data:
-            _LOGGER.warning("Coordinator data is None for %s", self.entity_id)
-            self._attr_state = None
-            return
+            if self.entity_id is None:
+                _LOGGER.warning("Coordinator data is None for %s", self.entity_id)
+                self._attr_state = None
+                self._attr_icon = "mdi:help-circle"
+                self._hass_custom_attributes = {
+                    "orders":      [],
+                }
+                return
+            else:
+                return
         
         orders = ocado_data.get("orders")
         if orders is not None:
@@ -517,20 +572,26 @@ class OcadoOrderList(CoordinatorEntity, SensorEntity): # type: ignore
             self._hass_custom_attributes = {
                 "orders": []
             }
-        # Could hash the dicts for better comparison and to detect other changes.. but I think updated would change.
+        # Check if the attributes need updating
         if self.entity_id is not None:
+            now = datetime.now()
             current = self.hass.states.get(self.entity_id)
-            new_updated = self._hass_custom_attributes.get("updated")
+            new = self._hass_custom_attributes
             
             if current is None:
                 self.async_write_ha_state()
                 return
             
-            old_updated = current.attributes.get("updated")
-            _LOGGER.debug("Comparing with old attributes; old_updated = %s, while new_updated = %s", old_updated, new_updated)
-            if old_updated != new_updated: # type: ignore
+            old = current.attributes
+            if detect_attr_changes(new, old):
                 _LOGGER.debug("Updating due to new attributes")
                 self.async_write_ha_state()
+            # Now check if the edit deadline has passed
+            elif "next" in current.attributes:
+                if hasattr(current.attributes.get("next"),"edit_deadline"):
+                    if current.attributes.get("next").edit_deadline < now: # type: ignore
+                        _LOGGER.debug("Updating due to edit deadline passed")
+                        self.async_write_ha_state()
 
 
 class OcadoBBDs(SensorEntity):
