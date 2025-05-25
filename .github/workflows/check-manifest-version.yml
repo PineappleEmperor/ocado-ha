@@ -67,9 +67,9 @@ jobs:
           BUMP=""
 
           if echo "$LABELS" | grep -qi '!feat'; then
-            BUMP="breaking feature"
+            BUMP="xfeature"
           elif echo "$LABELS" | grep -qi '!feature'; then
-            BUMP="breaking feature"
+            BUMP="xfeature"
           elif echo "$LABELS" | grep -qi 'feat'; then
             BUMP="feature"
           elif echo "$LABELS" | grep -qi 'feature'; then
@@ -86,7 +86,7 @@ jobs:
             BUMP="none"
           fi
 
-          if [ "$BUMP" = "breaking feature" ]; then
+          if [ "$BUMP" = "xfeature" ]; then
             EXPECTED_VERSION="v$((MAJOR+1)).0.0"
           elif [ "$BUMP" = "feature" ]; then
             EXPECTED_VERSION="v$MAJOR.$((MINOR+1)).0"
@@ -138,12 +138,13 @@ jobs:
           exit 1
 
       - name: Comment if version number is incorrect
-        if: steps.bump.outputs.expected_version != format('v{0}', steps.versions.outputs.pr_version)
+        if: steps.bump.outputs.expected_version != format('v{0}', steps.compare.outputs.pr_version)
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           BUMP_TYPE="${{ steps.bump.outputs.RECOMMENDED_BUMP }}"
           NEW_VERSION="${{ steps.bump.outputs.SUGGESTED_VERSION }}"
+          PR_VERSION="${{ steps.compare.outputs.PR_VERSION }}"
           MSG="<!-- version-check -->"
           MSG+="
           ⚠️ **Version in \`custom_components/ocado/manifest.json\` seems incorrect.**
@@ -176,4 +177,6 @@ jobs:
           fi
           # Fail the job
           echo "❌ Version mismatch - failing the workflow"
+          echo "pr_version=$PR_VERSION"
+          echo "suggested_version=$NEW_VERSION"
           exit 1
