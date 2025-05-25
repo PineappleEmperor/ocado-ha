@@ -376,6 +376,7 @@ class OcadoTotal(CoordinatorEntity, SensorEntity): # type: ignore
         order = ocado_data.get("total")
         if order is not None:
             result = set_total(self, order, now) # noqa: F841
+            _LOGGER.debug("Set_total returned %s", result)
         else:
             self._attr_state = None
             self._attr_icon = "mdi:help-circle"
@@ -385,10 +386,16 @@ class OcadoTotal(CoordinatorEntity, SensorEntity): # type: ignore
             }
         if self.entity_id is not None:
             current = self.hass.states.get(self.entity_id)
+            new = self._hass_custom_attributes
             
             if current is None:
                 self.async_write_ha_state()
                 return
+            
+            old = current.attributes
+            if detect_attr_changes(new, old): # type: ignore
+                _LOGGER.debug("Updating due to new attributes")
+                self.async_write_ha_state()
 
 
 class OcadoUpcoming(CoordinatorEntity, SensorEntity): # type: ignore
