@@ -5,8 +5,8 @@ categories:
     labels:
       - 'feat'
       - 'feature'
-      - '!feat'
-      - '!feature'
+      - 'xfeat'
+      - 'xfeature'
       - 'enhancement'
   - title: '🐛 Bug Fixes'
     labels:
@@ -21,8 +21,8 @@ version-resolver:
   major:
     labels:
       - 'major'
-      - '!feature'
-      - '!feat'
+      - 'xfeature'
+      - 'xfeat'
   minor:
     labels:
       - 'minor'
