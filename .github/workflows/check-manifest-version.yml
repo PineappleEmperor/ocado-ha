@@ -24,13 +24,13 @@ jobs:
       - name: Checkout base manifest.json
         run: |
           git fetch origin $BASE_REF
-          git show origin/$BASE_REF:manifest.json > ../manifest_base.json
-
+          git show origin/$BASE_REF:custom_components/ocado/manifest.json > ../manifest_base.json
+          
       - name: Compare manifest versions
         id: compare
         run: |
           BASE_VERSION=$(jq -r '.version' ../manifest_base.json)
-          CURRENT_VERSION=$(jq -r '.version' manifest.json)
+          CURRENT_VERSION=$(jq -r '.version' custom_components/ocado/manifest.json)
 
           echo "Base version: $BASE_VERSION"
           echo "Current version: $CURRENT_VERSION"
@@ -49,4 +49,4 @@ jobs:
         run: |
           gh pr comment ${{ github.event.pull_request.number }} --body "⚠️ **manifest.json version has not been updated.**
           
-          Please update the \`version\` field in \`manifest.json\` according to [Semantic Versioning](https://semver.org/), based on the type of change (major, minor, patch)."
+          Please update the \`version\` field in \`manifest.json\` according to [Semantic Versioning](https://semver.org/), based on the type of change (!feature (breaking change), feature, patch)."
