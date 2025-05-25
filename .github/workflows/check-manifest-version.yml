@@ -2,7 +2,7 @@ name: Check Manifest Version Bump
 
 on:
   pull_request:
-    types: [opened, synchronize, reopened]
+    types: [opened, synchronize, reopened, labeled]
 
 permissions:
   contents: read
@@ -42,11 +42,67 @@ jobs:
             echo "unchanged=false" >> $GITHUB_OUTPUT
           fi
 
+      - name: Determine bump type from PR labels
+        id: bump
+        if: steps.compare.outputs.unchanged == 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          LABELS=$(gh pr view ${{ github.event.pull_request.number }} --json labels -q '.labels[].name')
+
+          BUMP=""
+
+          if echo "$LABELS" | grep -qi '!feat'; then
+            BUMP="breaking feature"
+          elif echo "$LABELS" | grep -qi '!feature'; then
+            BUMP="breaking feature"
+          elif echo "$LABELS" | grep -qi 'feat'; then
+            BUMP="feature"
+          elif echo "$LABELS" | grep -qi 'feature'; then
+            BUMP="feature"
+          elif echo "$LABELS" | grep -qi 'fix'; then
+            BUMP="fix"
+          elif echo "$LABELS" | grep -qi 'patch'; then
+            BUMP="patch"
+          elif echo "$LABELS" | grep -qi 'fix'; then
+            BUMP="patch"
+          elif echo "$LABELS" | grep -qi 'chore'; then
+            BUMP="patch"
+          else
+            BUMP="none"
+          fi
+
+          if [ "$BUMP" = "breaking feature" ]; then
+            NEW_VERSION="v$((MAJOR+1)).0.0"
+          elif [ "$BUMP" = "feature" ]; then
+            NEW_VERSION="v$MAJOR.$((MINOR+1)).0"
+          elif [ "$BUMP" = "fix" ]; then
+            NEW_VERSION="v$MAJOR.$((MINOR+1)).0"
+          elif [ "$BUMP" = "patch" ]; then
+            NEW_VERSION="v$MAJOR.$MINOR.$((PATCH+1))"
+          else
+            NEW_VERSION=""
+          fi
+
+          echo "RECOMMENDED_BUMP=$BUMP" >> $GITHUB_OUTPUT
+          echo "SUGGESTED_VERSION=$NEW_VERSION" >> $GITHUB_OUTPUT
+
       - name: Comment on PR if version unchanged
         if: steps.compare.outputs.unchanged == 'true'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh pr comment ${{ github.event.pull_request.number }} --body "⚠️ **manifest.json version has not been updated.**
-          
-          Please update the \`version\` field in \`manifest.json\` according to [Semantic Versioning](https://semver.org/), based on the type of change (!feature (breaking change), feature, patch)."
+          BUMP_TYPE="${{ steps.bump.outputs.RECOMMENDED_BUMP }}"
+          NEW_VERSION="${{ steps.bump.outputs.SUGGESTED_VERSION }}"
+          MSG="⚠️ **Version in \`custom_components/ocado/manifest.json\` has not been updated.**
+
+          Please update the \`version\` field according to [Semantic Versioning](https://semver.org/)."
+
+          if [ "$BUMP_TYPE" != "none" ]; then
+            MSG+="\n\n🔍 Based on the PR labels, a **$BUMP_TYPE** version bump is recommended."
+            MSG+="\n💡 Suggested new version: \`$NEW_VERSION\`"
+          else
+            MSG+="\n\n💡 No \`breaking feature\`, \`feature\`, or \`fix\` label was found — please add one to indicate the type of change."
+          fi
+
+          gh pr comment ${{ github.event.pull_request.number }} --body "$MSG"
