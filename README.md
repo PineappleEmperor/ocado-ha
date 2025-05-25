@@ -53,7 +53,7 @@ Features
 
 [Custom Button Card](/docs/community_templates/custom_button_card.yaml) by @PineappleEmperor
 \
-<img src="/docs/images/custom_button_card.png" alt="Example Custom Button Card" width="250"/>
+<img src="/docs/images/custom_button_card.png" alt="Example Custom Button Card" width="500"/>
 
 ### Tips & Tricks
 
