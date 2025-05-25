@@ -25,7 +25,7 @@ jobs:
         run: |
           git fetch origin $BASE_REF
           git show origin/$BASE_REF:custom_components/ocado/manifest.json > ../manifest_base.json
-          
+
       - name: Compare manifest versions
         id: compare
         run: |
@@ -41,6 +41,8 @@ jobs:
           else
             echo "unchanged=false" >> $GITHUB_OUTPUT
           fi
+          echo "base_version=$BASE_VERSION" >> $GITHUB_OUTPUT
+          echo "pr_version=$PR_VERSION" >> $GITHUB_OUTPUT
 
       - name: Determine bump type from PR labels
         id: bump
@@ -48,6 +50,19 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           LABELS=$(gh pr view ${{ github.event.pull_request.number }} --json labels -q '.labels[].name')
+
+          BASE_VERSION="${{ steps.compare.outputs.base_version }}"
+          echo "Base version: $BASE_VERSION"
+      
+          # Use regex to extract semver parts safely
+          if [[ "$BASE_VERSION" =~ ^([0-9]+)\.([0-9]+)\.([0-9]+)$ ]]; then
+            MAJOR="${BASH_REMATCH[1]}"
+            MINOR="${BASH_REMATCH[2]}"
+            PATCH="${BASH_REMATCH[3]}"
+          else
+            echo "❌ Could not parse version number: $BASE_VERSION"
+            exit 1
+          fi
 
           BUMP=""
 
@@ -93,18 +108,34 @@ jobs:
         run: |
           BUMP_TYPE="${{ steps.bump.outputs.RECOMMENDED_BUMP }}"
           NEW_VERSION="${{ steps.bump.outputs.SUGGESTED_VERSION }}"
-          MSG="⚠️ **Version in \`custom_components/ocado/manifest.json\` has not been updated.**
+          MSG="<!-- version-check -->"
+          MSG+="⚠️ **Version in \`custom_components/ocado/manifest.json\` has not been updated.**
 
           Please update the \`version\` field according to [Semantic Versioning](https://semver.org/)."
 
           if [ "$BUMP_TYPE" != "none" ]; then
-            MSG+="\n\n🔍 Based on the PR labels, a **$BUMP_TYPE** version bump is recommended."
-            MSG+="\n💡 Suggested new version: \`$NEW_VERSION\`"
+            MSG+="
+            
+            🔍 Based on the PR labels, a **$BUMP_TYPE** version bump is recommended."
+            MSG+="
+            
+            💡 Suggested new version: \`$NEW_VERSION\`"
           else
-            MSG+="\n\n💡 No \`breaking feature\`, \`feature\`, or \`fix\` label was found — please add one to indicate the type of change."
+            MSG+="
+            
+            💡 No \`breaking feature\`, \`feature\`, or \`fix\` label was found — please add one to indicate the type of change."
           fi
 
-          gh pr comment ${{ github.event.pull_request.number }} --body "$MSG"
+          if [ -n "$COMMENT_ID" ]; then
+            echo "📝 Updating existing comment..."
+            gh pr comment ${{ github.event.pull_request.number }} --edit "$COMMENT_ID" --body "$MSG"
+          else
+            echo "💬 Creating new comment..."
+            gh pr comment ${{ github.event.pull_request.number }} --body "$MSG"
+          fi
+          # Fail the job
+          echo "❌ Version mismatch - failing the workflow"
+          exit 1
 
       - name: Comment if version number is incorrect
         if: steps.bump.outputs.expected_version != format('v{0}', steps.versions.outputs.pr_version)
@@ -113,15 +144,36 @@ jobs:
         run: |
           BUMP_TYPE="${{ steps.bump.outputs.RECOMMENDED_BUMP }}"
           NEW_VERSION="${{ steps.bump.outputs.SUGGESTED_VERSION }}"
-          MSG="⚠️ **Version in \`custom_components/ocado/manifest.json\` seems incorrect.**
+          MSG="<!-- version-check -->"
+          MSG+="
+          ⚠️ **Version in \`custom_components/ocado/manifest.json\` seems incorrect.**
 
           Please update the \`version\` field according to [Semantic Versioning](https://semver.org/)."
 
           if [ "$BUMP_TYPE" != "none" ]; then
-            MSG+="\n\n🔍 Based on the PR labels, a **$BUMP_TYPE** version bump is recommended."
-            MSG+="\n💡 Suggested new version: \`$NEW_VERSION\`"
+            MSG+="
+            
+            🔍 Based on the PR labels, a **$BUMP_TYPE** version bump is recommended."
+            MSG+="
+            
+            💡 Suggested new version: \`$NEW_VERSION\`"
           else
-            MSG+="\n\n💡 No \`breaking feature\`, \`feature\`, or \`fix\` label was found — please add one to indicate the type of change."
+            MSG+="
+            
+            💡 No \`breaking feature\`, \`feature\`, or \`fix\` label was found — please add one to indicate the type of change."
           fi
 
-          gh pr comment ${{ github.event.pull_request.number }} --body "$MSG"
+          # Get existing bot comments with the version-check marker
+          COMMENT_ID=$(gh pr view ${{ github.event.pull_request.number }} --json comments -q \
+            '.comments[] | select(.author.login == "github-actions[bot]") | select(.body | contains("<!-- version-check -->")) | .id')
+
+          if [ -n "$COMMENT_ID" ]; then
+            echo "📝 Updating existing comment..."
+            gh pr comment ${{ github.event.pull_request.number }} --edit "$COMMENT_ID" --body "$MSG"
+          else
+            echo "💬 Creating new comment..."
+            gh pr comment ${{ github.event.pull_request.number }} --body "$MSG"
+          fi
+          # Fail the job
+          echo "❌ Version mismatch - failing the workflow"
+          exit 1
