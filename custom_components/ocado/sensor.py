@@ -550,8 +550,7 @@ class OcadoOrderList(CoordinatorEntity, SensorEntity): # type: ignore
                 self._attr_state = None
                 self._attr_icon = "mdi:help-circle"
                 self._hass_custom_attributes = {
-                    "updated":      datetime.now(),
-                    "order_number": None,
+                    "orders":      [],
                 }
                 return
             else:
