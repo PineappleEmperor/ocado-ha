@@ -91,7 +91,7 @@ jobs:
           elif [ "$BUMP" = "feature" ]; then
             EXPECTED_VERSION="v$MAJOR.$((MINOR+1)).0"
           elif [ "$BUMP" = "fix" ]; then
-            EXPECTED_VERSION="v$MAJOR.$((MINOR+1)).0"
+            EXPECTED_VERSION="v$MAJOR.$MINOR.$((PATCH+1))"
           elif [ "$BUMP" = "patch" ]; then
             EXPECTED_VERSION="v$MAJOR.$MINOR.$((PATCH+1))"
           else
