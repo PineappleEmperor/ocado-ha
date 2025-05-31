@@ -1,11 +1,11 @@
 [![release][release-badge]][release-url]
 [![commits-since-latest][commits-badge]][commits-url]
 ![stars][stars-badge]
+![Dynamic Regex Badge][hacs-badge]
 \
 ![build][python-badge]
 ![build][hassfest-badge]
 ![build][hacs-valid-badge]
-![Dynamic Regex Badge][hacs-badge]
 
 Ocado UK Integration for Home Assistant
 =====================================
