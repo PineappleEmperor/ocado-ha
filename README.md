@@ -6,7 +6,7 @@
 ![build][python-badge]
 ![build][hassfest-badge]
 ![build][hacs-valid-badge]
-[![hacs][hacs-badge]][hacs-url]
+![Dynamic Regex Badge][hacs-badge]
 
 Ocado UK Integration for Home Assistant
 =====================================
@@ -226,7 +226,7 @@ Future Plans
 
 [commits-badge]: https://img.shields.io/github/commits-since/PineappleEmperor/ocado-ha/latest?style=flat-square
 [downloads-badge]: https://img.shields.io/github/downloads/pineappleemperor/ocado-ha/total?style=flat-square
-[hacs-badge]: https://img.shields.io/badge/HACS-Custom-41BDF5.svg?style=flat-square&label=hacs
+[hacs-badge]: https://img.shields.io/badge/dynamic/regex?url=https%3A%2F%2Fraw.githubusercontent.com%2Fhacs%2Fdefault%2Frefs%2Fheads%2Fmaster%2Fintegration&search=(%22PineappleEmperor%2Focado-ha%22)&replace=default&style=flat-square&label=hacs&link=https%3A%2F%2Fgithub.com%2Fhacs%2Fintegration
 [hacs-valid-badge]: https://img.shields.io/github/actions/workflow/status/PineappleEmperor/ocado-ha/hacs_validate.yml?style=flat-square&label=hacs%20valid
 [hassfest-badge]: https://img.shields.io/github/actions/workflow/status/PineappleEmperor/ocado-ha/hassfest_validate.yml?style=flat-square&label=hassfest
 [python-badge]: https://img.shields.io/github/actions/workflow/status/PineappleEmperor/ocado-ha/python_validate.yml?style=flat-square&label=python
