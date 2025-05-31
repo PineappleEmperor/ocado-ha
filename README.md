@@ -1,7 +1,6 @@
 [![release][release-badge]][release-url]
 [![commits-since-latest][commits-badge]][commits-url]
 ![stars][stars-badge]
-![downloads][downloads-badge]
 \
 ![build][python-badge]
 ![build][hassfest-badge]
