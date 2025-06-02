@@ -4,6 +4,8 @@ from datetime import date, datetime, timedelta
 import email
 from email.policy import default as default_policy
 from imaplib import IMAP4_SSL as imap
+import io
+from pypdf import PdfReader
 import json
 import logging
 import re
@@ -17,15 +19,23 @@ from .const import(
     OCADO_SMARTPASS_SUBJECT,
     OCADO_SUBJECT_DICT,
     REGEX_DATE,
+    REGEX_DATE_FULL,
     REGEX_DAY_FULL,
     REGEX_MONTH_FULL,
     REGEX_YEAR,
     REGEX_TIME,
     REGEX_ORDINALS,
+    STRING_PLUS,
+    STRING_NO_BBD,
+    REGEX_END_INDEX,
+    STRING_FREEZER,
+    STRING_PREFIX,
     OcadoEmail,
     OcadoEmails,
     OcadoOrder,
+    BBDLists,
     EMPTY_ORDER,
+    DAYS,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -162,7 +172,53 @@ def email_triage(self) -> tuple[list[Any], OcadoEmails | None]:
                 # We only care about the most recent receipt
                 if ocado_receipt is None:
                     ocado_receipt = ocado_email
-                    # TODO add code to download the receipt attachment
+                    email_message = email.message_from_bytes(message_data, policy=default_policy) # type: ignore
+                    for part in email_message.iter_attachments():
+                        if part.get_content_type() == 'application/pdf':
+                            pdf_data = part.get_payload(decode=True)
+                            pdf_stream = io.BytesIO(pdf_data) # type: ignore
+                            try:
+                                reader = PdfReader(pdf_stream)
+                                page = reader.pages[0]
+                                receipt_list = page.extract_text().split('\n')
+                            except:  # noqa: E722
+                                receipt_list = []
+                                continue
+                            # Calculate the indices of the different lists
+                            fridge_index = HeaderIndex("Fridge", receipt_list)
+                            cupboard_index = HeaderIndex("Cupboard", receipt_list)
+                            end_index = FindEndIndex(receipt_list)
+                            # Set up the BBD lists
+                            fridge = BBDLists(fridge_index, None, None)
+                            cupboard = BBDLists(cupboard_index, None, None)
+                            # Set the end indices
+                            if fridge.index_start is not None:
+                                if cupboard.index_start is not None:
+                                    fridge.index_end = cupboard.index_start - 2        
+                                    cupboard.index_end = end_index
+                                else:
+                                    fridge.index_end = end_index
+                            # Now calculate the BBDs properly
+                            delivery_date_raw = re.search(REGEX_DATE_FULL, receipt_list[6])
+                            if delivery_date_raw is not None:
+                                delivery_date_raw = delivery_date_raw.group()
+                                _LOGGER.debug("delivery_date_raw found (in 6) as %s", delivery_date_raw)
+                            else:
+                                delivery_date_raw = re.search(REGEX_DATE_FULL, receipt_list[7])
+                                if delivery_date_raw is not None:
+                                    delivery_date_raw = delivery_date_raw.group()
+                                    _LOGGER.debug("delivery_date_raw found (in 7) as %s", delivery_date_raw)
+                            if delivery_date_raw is None:
+                                raise Exception
+                            _LOGGER.debug("delivery_date_raw found as %s", delivery_date_raw)
+                            fridge.update_bbds(receipt_list)
+                            cupboard.update_bbds(receipt_list)
+                            # Now save the lists as new attributes
+                            for day in DAYS:
+                                # I think the number of cupboard bbds will be small, so combining.
+                                day_list = getattr(fridge, day) + getattr(cupboard, day)
+                                setattr(ocado_receipt, day, day_list)
+                            setattr(ocado_receipt, "date_dict", fridge.date_dict)
             elif ocado_email.type == "confirmation":
                 # Make sure we're not adding an older version of an order we already have
                 if ocado_email.order_number not in ocado_confirmed_orders:
@@ -252,7 +308,7 @@ def total_parse(ocado_email: OcadoEmail) -> OcadoOrder:
 
 
 def receipt_parse(ocado_email: OcadoEmail) -> OcadoOrder:
-    """Parse an Ocado receipt email into an OcadoOrder object."""
+    """Parse an Ocado receipt email pdf into an OcadoOrder object."""
     # TODO return BBD info.
     # message = ocado_email.body
     # if message is None:
@@ -300,6 +356,18 @@ def iconify(days: int) -> str:
         return "mdi:close-circle"
     elif days == 0:
         return "mdi:truck-fast"
+    elif days > 9:
+        return "mdi:numeric-9-plus-circle"
+    else:
+        return "mdi:numeric-" + str(days) + "-circle"
+
+
+def bbd_iconify(days: int) -> str:
+    """Parse a number of days into a bbd icon."""
+    if days < 0:
+        return "mdi:close-circle"
+    elif days == 0:
+        return "mdi:calendar-remove"
     elif days > 9:
         return "mdi:numeric-9-plus-circle"
     else:
@@ -400,18 +468,26 @@ def set_total(self, order: OcadoOrder, now: datetime) -> bool:
     return False
 
 
-def set_receipt(self, order: OcadoOrder, now: datetime) -> bool:
-    """This function validates an order is in the future and sets the state and attributes if it is."""
+def set_bbds(self, email: OcadoEmail, day: str, now: datetime) -> bool:
+    """This function validates a pdf receipt and returns the formatted BBDs."""
     _LOGGER.debug("Setting receipt")
-    # if (order.estimated_total is not None):
-    #         self._attr_state = order.estimated_total
-    #         self._attr_icon = "mdi:receipt-text"
-    #         attributes = {
-    #             "updated"               : order.updated,
-    #             "order_number"          : order.order_number,
-    #         }
-    #         self._hass_custom_attributes = attributes
-    #         return True
+    if hasattr(email, day) is True and hasattr(email, "date_dict") is True:
+        today = now.date()
+        date_dict = getattr(email, "date_dict")
+        day_list = getattr(email, day)
+        if day_list is not None: # type: ignore
+            day_date = date_dict.get(DAYS.index(day))
+            days_until = (day_date - today).days
+            self._attr_state = len(day_list)
+            self._attr_icon = bbd_iconify(days_until)
+            attributes = {
+                "updated"               : email.date,
+                "order_number"          : email.order_number,
+                "date"                  : day_date,
+                "bbds"                  : day_list,
+            }
+            self._hass_custom_attributes = attributes
+            return True
     return False
 
 
@@ -423,3 +499,52 @@ def convert_datetime(obj):
 
 def detect_attr_changes(d1: dict,d2: dict) -> bool:
     return hash(json.dumps(d1, sort_keys=True, default=convert_datetime)) != hash(json.dumps(d2, sort_keys=True, default=convert_datetime))
+
+
+def HeaderIndex(string: str, receipt_list: list) -> int | None:
+    """Returns the first index of a header in a list and removes any other occurences from the list."""
+    count = receipt_list.count(string)
+    indices = []
+    if count == 0:
+        return None
+    index = 0
+    while count > 0:
+        index = receipt_list.index(string, index)
+        indices.append(index)
+        index += 1
+        count -= 1
+    first_index = indices.pop(0)
+    for i in range(len(indices)):
+        receipt_list.pop(indices[i])
+    return first_index
+
+
+def BBDIndex(string: str, receipt_list: list) -> list[int] | None:
+    """Returns the indices of all occurences in a list."""
+    count = receipt_list.count(string)
+    indices = []
+    if count == 0:
+        return None
+    index = 0
+    while count > 0:
+        index = receipt_list.index(string, index)
+        indices.append(index)
+        index += 1
+        count -= 1
+    return indices
+
+
+def FindEndIndex(receipt_list: list) -> int:
+    index = -1
+    if STRING_NO_BBD in receipt_list:
+        index = receipt_list.index(STRING_NO_BBD)
+        return index
+    elif STRING_FREEZER in receipt_list:
+        index = receipt_list.index(STRING_FREEZER)
+        return index
+    else:
+        for i in range(len(receipt_list)):
+            if re.search(REGEX_END_INDEX, receipt_list[i]):
+                index = receipt_list[i]
+                break
+        return index
