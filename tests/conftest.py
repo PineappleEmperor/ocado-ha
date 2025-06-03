@@ -2,14 +2,14 @@
 
 import pytest
 import logging
-from email import message_from_bytes
-from pathlib import Path
-from homeassistant.setup import async_setup_component
-from homeassistant.helpers import entity_component
+# from email import message_from_bytes
+# from pathlib import Path
+# from homeassistant.setup import async_setup_component
+# from homeassistant.helpers import entity_component
 from custom_components.ocado.const import DOMAIN
 from homeassistant.config_entries import ConfigEntryState
 from pytest_homeassistant_custom_component.common import MockConfigEntry
-from unittest.mock import AsyncMock, MagicMock, patch
+# from unittest.mock import AsyncMock, MagicMock, patch
 
 logger = logging.getLogger(__name__)
 
