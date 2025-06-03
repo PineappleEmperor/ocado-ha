@@ -10,13 +10,13 @@
 # from custom_components.ocado.const import OcadoOrder
 # from custom_components.ocado.coordinator import OcadoUpdateCoordinator
 
-# from homeassistant.setup import async_setup_component
-# from custom_components.ocado.const import DOMAIN
+from homeassistant.setup import async_setup_component
+from custom_components.ocado.const import DOMAIN
 
 
-# async def test_async_setup(hass):
-#     """Test the component gets setup."""
-#     assert await async_setup_component(hass, DOMAIN, {}) is True
+async def test_async_setup(hass):
+    """Test the component gets setup."""
+    assert await async_setup_component(hass, DOMAIN, {}) is True
 
 
 # @pytest.mark.asyncio

@@ -1,49 +1,49 @@
 """Fixtures for testing."""
 
-# import pytest
-# import logging
-# from email import message_from_bytes
-# from pathlib import Path
-# from homeassistant.setup import async_setup_component
-# from homeassistant.helpers import entity_component
-# from custom_components.ocado.const import DOMAIN
-# from homeassistant.config_entries import ConfigEntryState
-# from pytest_homeassistant_custom_component.common import MockConfigEntry
-# from unittest.mock import AsyncMock, MagicMock, patch
+import pytest
+import logging
+from email import message_from_bytes
+from pathlib import Path
+from homeassistant.setup import async_setup_component
+from homeassistant.helpers import entity_component
+from custom_components.ocado.const import DOMAIN
+from homeassistant.config_entries import ConfigEntryState
+from pytest_homeassistant_custom_component.common import MockConfigEntry
+from unittest.mock import AsyncMock, MagicMock, patch
 
-# logger = logging.getLogger(__name__)
-
-
-# @pytest.fixture(autouse=True)
-# def auto_enable_custom_integrations(enable_custom_integrations):
-#     yield
+logger = logging.getLogger(__name__)
 
 
-# @pytest.fixture
-# async def mock_config_entry(hass):
-#     """Return a mock config entry."""
-#     entry = MockConfigEntry(
-#         domain=DOMAIN,
-#         title="Ocado",
-#         data={
-#             "email": "test@example.com",
-#             "password": "password123",
-#             "imap_host": "imap.test.com",
-#             "imap_port": 993,
-#             "imap_folder": "INBOX",
-#         },
-#     )
-#     entry.add_to_hass(hass)
-#     return entry
+@pytest.fixture(autouse=True)
+def auto_enable_custom_integrations(enable_custom_integrations):
+    yield
 
 
-# @pytest.fixture
-# async def init_integration(hass, mock_config_entry):
-#     """Set up the Ocado integration for testing."""
-#     await hass.config_entries.async_setup(mock_config_entry.entry_id)
-#     await hass.async_block_till_done()
-#     assert mock_config_entry.state == ConfigEntryState.LOADED
-#     return mock_config_entry
+@pytest.fixture
+async def mock_config_entry(hass):
+    """Return a mock config entry."""
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        title="Ocado",
+        data={
+            "email": "test@example.com",
+            "password": "password123",
+            "imap_host": "imap.test.com",
+            "imap_port": 993,
+            "imap_folder": "INBOX",
+        },
+    )
+    entry.add_to_hass(hass)
+    return entry
+
+
+@pytest.fixture
+async def init_integration(hass, mock_config_entry):
+    """Set up the Ocado integration for testing."""
+    await hass.config_entries.async_setup(mock_config_entry.entry_id)
+    await hass.async_block_till_done()
+    assert mock_config_entry.state == ConfigEntryState.LOADED
+    return mock_config_entry
 
 
 # @pytest.fixture
