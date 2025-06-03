@@ -25,11 +25,9 @@ from .const import(
     REGEX_YEAR,
     REGEX_TIME,
     REGEX_ORDINALS,
-    STRING_PLUS,
     STRING_NO_BBD,
     REGEX_END_INDEX,
     STRING_FREEZER,
-    STRING_PREFIX,
     OcadoEmail,
     OcadoEmails,
     OcadoOrder,
@@ -37,7 +35,6 @@ from .const import(
     OcadoReceipt,
     EMPTY_ORDER,
     DAYS,
-    LONG_DAYS,
 )
 
 _LOGGER = logging.getLogger(__name__)

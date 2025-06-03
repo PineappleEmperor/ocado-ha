@@ -1,17 +1,17 @@
 """Fixtures for testing."""
 
-import pytest
-import logging
-from email import message_from_bytes
-from pathlib import Path
-from homeassistant.setup import async_setup_component
-from homeassistant.helpers import entity_component
-from custom_components.ocado.const import DOMAIN
-from homeassistant.config_entries import ConfigEntryState
-from pytest_homeassistant_custom_component.common import MockConfigEntry
-from unittest.mock import AsyncMock, MagicMock, patch
+# import pytest
+# import logging
+# from email import message_from_bytes
+# from pathlib import Path
+# from homeassistant.setup import async_setup_component
+# from homeassistant.helpers import entity_component
+# from custom_components.ocado.const import DOMAIN
+# from homeassistant.config_entries import ConfigEntryState
+# from pytest_homeassistant_custom_component.common import MockConfigEntry
+# from unittest.mock import AsyncMock, MagicMock, patch
 
-logger = logging.getLogger(__name__)
+# logger = logging.getLogger(__name__)
 
 
 # @pytest.fixture(autouse=True)
