@@ -28,6 +28,7 @@ from .const import (
     DAYS,
     DEVICE_CLASS,
     DOMAIN,
+    WEEKDAY_MAP,
     # EMPTY_ATTRIBUTES,
 )
 from .coordinator import OcadoUpdateCoordinator
@@ -82,8 +83,7 @@ async def async_setup_entry(
 def create_bbd_sensor_entities(coordinator):#, entry_id):
     """Create bbd sensor entities based on coordinator data."""
     entities = []
-
-    for day in DAYS:
+    for day in DAYS[:-1]:
         entities.append(
             OcadoBBDs(coordinator, day)
         )
@@ -604,9 +604,9 @@ class OcadoBBDs(CoordinatorEntity, SensorEntity): # type: ignore
         self.coordinator                = coordinator
         self.device_id                  = "Ocado BBDs"
         self._hass_custom_attributes    = {}
-        self._attr_name                 = f"Ocado BB {day.capitalize()}"
-        self._attr_unique_id            = "ocado_bbd_{day}"
-        self._globalid                  = "ocado_bbds_{day}"
+        self._attr_name                 = f"Ocado Best Before {WEEKDAY_MAP[day].capitalize()}"
+        self._attr_unique_id            = f"ocado_bbd_{day}"
+        self._globalid                  = f"ocado_bbds_{day}"
         self._attr_icon                 = "mdi:cart-outline"
         self._attr_state                = None
         self._day                       = day
@@ -662,7 +662,7 @@ class OcadoBBDs(CoordinatorEntity, SensorEntity): # type: ignore
         
         if day_list is not None:
             result = set_bbds(self, day_list, self._day, now) # type: ignore
-            _LOGGER.debug("Set_order returned %s", result)
+            _LOGGER.debug("Set_bbds returned %s", result)
         else:            
             self._attr_state = None
             self._attr_icon = "mdi:help-circle"

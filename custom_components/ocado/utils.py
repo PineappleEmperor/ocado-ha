@@ -34,8 +34,10 @@ from .const import(
     OcadoEmails,
     OcadoOrder,
     BBDLists,
+    OcadoReceipt,
     EMPTY_ORDER,
     DAYS,
+    LONG_DAYS,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -171,7 +173,7 @@ def email_triage(self) -> tuple[list[Any], OcadoEmails | None]:
             if ocado_email.type == "receipt":
                 # We only care about the most recent receipt
                 if ocado_receipt is None:
-                    ocado_receipt = ocado_email
+                    ocado_receipt = OcadoReceipt(ocado_email.date, ocado_email.order_number)
                     email_message = email.message_from_bytes(message_data, policy=default_policy) # type: ignore
                     for part in email_message.iter_attachments():
                         if part.get_content_type() == 'application/pdf':
@@ -214,7 +216,10 @@ def email_triage(self) -> tuple[list[Any], OcadoEmails | None]:
                             fridge.update_bbds(receipt_list)
                             cupboard.update_bbds(receipt_list)
                             # Now save the lists as new attributes
-                            for day in DAYS:
+                            for day in DAYS[:-1]:
+                                _LOGGER.debug("Attempting to get %s from fridge & cupboard", day)
+                                _LOGGER.debug("Fridge: %s", getattr(fridge, day))
+                                _LOGGER.debug("Cupboard: %s", getattr(cupboard, day))
                                 # I think the number of cupboard bbds will be small, so combining.
                                 day_list = getattr(fridge, day) + getattr(cupboard, day)
                                 setattr(ocado_receipt, day, day_list)
@@ -305,32 +310,6 @@ def total_parse(ocado_email: OcadoEmail) -> OcadoOrder:
         estimated_total     = total,
     )
     return total
-
-
-def receipt_parse(ocado_email: OcadoEmail) -> OcadoOrder:
-    """Parse an Ocado receipt email pdf into an OcadoOrder object."""
-    # TODO return BBD info.
-    # message = ocado_email.body
-    # if message is None:
-    #     return EMPTY_ORDER
-    # _LOGGER.debug("Trying to find receit total in %s", message)
-    # pattern = r"New\sorder\stotal:\s{1,20}(?P<total>\d+.\d{1,2})\sGBP"
-    # raw = re.search(pattern, message)
-    # _LOGGER.debug("Found %s", raw)
-    # if raw:
-    #     total = raw.group("total")
-    #     _LOGGER.debug("Found total = %s", total)
-    # else:
-    #     total = None
-    # recent_order = OcadoOrder(
-    #     updated             = ocado_email.date,
-    #     order_number        = ocado_email.order_number,
-    #     delivery_datetime   = None,
-    #     delivery_window_end = None,
-    #     edit_datetime       = None,
-    #     estimated_total     = total,
-    # )
-    return EMPTY_ORDER
 
 
 def order_parse(ocado_email: OcadoEmail) -> OcadoOrder:
@@ -468,20 +447,20 @@ def set_total(self, order: OcadoOrder, now: datetime) -> bool:
     return False
 
 
-def set_bbds(self, email: OcadoEmail, day: str, now: datetime) -> bool:
+def set_bbds(self, email: OcadoReceipt, day: str, now: datetime) -> bool:
     """This function validates a pdf receipt and returns the formatted BBDs."""
-    _LOGGER.debug("Setting receipt")
+    _LOGGER.debug("Setting bbd")
     if hasattr(email, day) is True and hasattr(email, "date_dict") is True:
         today = now.date()
         date_dict = getattr(email, "date_dict")
         day_list = getattr(email, day)
-        if day_list is not None: # type: ignore
+        if day_list is not None: # type: ignore            
             day_date = date_dict.get(DAYS.index(day))
             days_until = (day_date - today).days
             self._attr_state = len(day_list)
             self._attr_icon = bbd_iconify(days_until)
             attributes = {
-                "updated"               : email.date,
+                "updated"               : email.updated,
                 "order_number"          : email.order_number,
                 "date"                  : day_date,
                 "bbds"                  : day_list,
@@ -491,14 +470,15 @@ def set_bbds(self, email: OcadoEmail, day: str, now: datetime) -> bool:
     return False
 
 
-def convert_datetime(obj):
-    if isinstance(obj, datetime):
+def convert_attributes(obj):
+    """Function to convert datetimes and dates in objects for serialisation"""
+    if isinstance(obj, (datetime, date)):
         return obj.isoformat()
     raise TypeError("Type not serializable")
 
 
 def detect_attr_changes(d1: dict,d2: dict) -> bool:
-    return hash(json.dumps(d1, sort_keys=True, default=convert_datetime)) != hash(json.dumps(d2, sort_keys=True, default=convert_datetime))
+    return hash(json.dumps(d1, sort_keys=True, default=convert_attributes)) != hash(json.dumps(d2, sort_keys=True, default=convert_attributes))
 
 
 def HeaderIndex(string: str, receipt_list: list) -> int | None:

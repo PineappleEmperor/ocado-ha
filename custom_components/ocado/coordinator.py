@@ -26,7 +26,7 @@ from .utils import (
     email_triage,
     order_parse,
     sort_orders,
-    receipt_parse,
+    # receipt_parse,
     total_parse,
 )
 
@@ -85,8 +85,8 @@ class OcadoUpdateCoordinator(DataUpdateCoordinator):
             # If there has been a recent delivery, add it as recent.
             if triaged_emails.receipt is not None:
                 try:
-                    order           = receipt_parse(triaged_emails.receipt)
-                    receipt         = order
+                    # order           = receipt_parse(triaged_emails.receipt)
+                    receipt         = triaged_emails.receipt
                 except: # noqa: E722
                     receipt         = None
             else:

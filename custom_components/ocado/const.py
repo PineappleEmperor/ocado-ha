@@ -47,23 +47,23 @@ REGEX_DAY_FULL = r"Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday"
 REGEX_DAY_SHORT = r"Mon|Tue|Wed|Thu|Fri|Sat|Sun"
 REGEX_MONTH_FULL = r"January|February|March|April|May|June|July|August|September|October|November|December"
 REGEX_MONTH_SHORT = r"Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec"
-REGEX_MONTH = r"(1[0-2]|0?[1-9])"
+REGEX_MONTH = r"1[0-2]|0?[1-9]"
 REGEX_YEAR = r"(?:19|20)\d{2}"
 # If this eventually fails due to other formats being used, python-dateutil should be used
-REGEX_DATE_FULL = r"(" + REGEX_DATE + r"\/" + REGEX_MONTH + r"\/" + REGEX_YEAR + r")"
+REGEX_DATE_FULL = r"((?:" + REGEX_DATE + r")\/(?:" + REGEX_MONTH + r")\/(?:" + REGEX_YEAR + r"))"
 REGEX_TIME = r"([01][0-9]|2[0-3]):([0-5][0-9])([AaPp][Mm])?"
 REGEX_ORDINALS = r"st|nd|rd|th"
 
-REGEX_WEIGHT = r"(?:\d+)?k?g?\s?"
-REGEX_EACH = REGEX_WEIGHT + r"\([\\u00a3|£]\d{1,2}.\d{2}\/EACH\)"
-REGEX_WEIGHT_QUANTITY_COST = REGEX_WEIGHT + r"\d\/\d\s?\d{1,2}.\d{1,2}"
-REGEX_WEIGHT_QUANTITY_EACH = REGEX_EACH + r"\s?\d\/\d{1,2}.?\d{1,2}?\s?\d{1,2}.\d{2}"
+REGEX_AMOUNT = r"(?:\d+x)?\d+k?(?:g|l|ml)"
+REGEX_COLUMNS = r"\s?\d+\/\d+\s?\d+.\d{2}\*?"
+REGEX_EACH = r"\((?:£|\\u00a3)\d+\.\d{2}\/\s?each\)"
 
 STRING_PLUS = "Products with a 'use-by' date over one week"
 STRING_NO_BBD = "Products with no 'use-by' date" # only applicable to cupboard
 REGEX_END_INDEX = r"You've saved £\d+.\d{2} today"
 STRING_FREEZER = 'Freezer'
 STRING_PREFIX = 'Use by end of '
+STRING_HEADER = ["Delivered /", "Ordered", "Price", "to", "pay", "(£)"]
 
 DAYS = [
     "mon",
@@ -75,6 +75,26 @@ DAYS = [
     "sun",
     "longer"
 ]
+
+LONG_DAYS = [
+    "Monday",
+    "Tuesday",
+    "Wednesday",
+    "Thursday",
+    "Friday",
+    "Saturday",
+    "Sunday"
+]
+
+WEEKDAY_MAP = {
+    "mon": "monday",
+    "tue": "tuesday",
+    "wed": "wednesday",
+    "thu": "thursday",
+    "fri": "friday",
+    "sat": "saturday",
+    "sun": "sunday",
+}
 
 EMPTY_ATTRIBUTES = {
     "order_number"          : None,
@@ -104,6 +124,36 @@ class OcadoEmail:
         self.body           = body
         self.order_number   = order_number
 
+class OcadoReceipt:
+    """Class for Ocado Receipts."""
+    def __init__(self,
+        updated                     : datetime  | date | None,
+        order_number                : str       | None,
+        mon                         : list[str] | None  = [],
+        tue                         : list[str] | None  = [],
+        wed                         : list[str] | None  = [],
+        thu                         : list[str] | None  = [],
+        fri                         : list[str] | None  = [],
+        sat                         : list[str] | None  = [],
+        sun                         : list[str] | None  = [],
+        date_dict                   : dict      | None  = {},
+    ):
+        self.updated                = updated
+        self.order_number           = order_number
+        self.mon                    = mon
+        self.tue                    = tue
+        self.wed                    = wed
+        self.thu                    = thu
+        self.fri                    = fri
+        self.sat                    = sat
+        self.sun                    = sun
+        self.date_dict              = date_dict
+    def toJSON(self):
+        order = {}
+        for k, v in vars(self).items():
+            order[k] = str(v)
+        return json.dumps(order)
+
 class OcadoEmails:
     """Class for all retrieved emails."""
     def __init__(self,
@@ -111,7 +161,7 @@ class OcadoEmails:
         cancelled           : list[OcadoEmail],
         confirmations       : list[OcadoEmail],
         total               : OcadoEmail | None,
-        receipt             : OcadoEmail | None,
+        receipt             : OcadoReceipt | None,
     ):
         self.orders         = orders
         self.cancelled      = cancelled
@@ -155,61 +205,65 @@ def capitalise(text):
 
 class BBDLists:
     """Class for a collection of BBD lists"""
-    days = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday']
-    header_string = ["Delivered /", "Ordered", "Price", "to", "pay", "(£)"]
-    plus_string = STRING_PLUS
-    columns_regex = r"\s?\d+\/\d+\s?\d+.\d{2}\*?"
-    partial_regex = r"\s?\d+\/\d+\s?\d+.\d{2}\*?"
-    complete_columns_regex = r"^" + columns_regex + r"$"
-    amount_regex = r"(?:\d+x)?\d+k?(?:g|l|ml)"
-    each_regex = r"\((?:£|\\u00a3)\d+\.\d{2}\/\s?each\)"
+    days_list               = DAYS[:-1]
+    long_days_list          = LONG_DAYS
+    header_string           = STRING_HEADER
+    plus_string             = STRING_PLUS
+    regex_date              = REGEX_DATE_FULL
+    columns_regex           = REGEX_COLUMNS
+    complete_columns_regex  = r"^" + columns_regex + r"$"
+    amount_regex            = REGEX_AMOUNT
+    each_regex              = REGEX_EACH
     def __init__(self,
-        index_start     : int | None,
-        index_end       : int | None,
-        delivery_date   : date | None,
-        date_dict       : dict | None   = {},
-        monday          : list[str]     = [],
-        tuesday         : list[str]     = [],
-        wednesday       : list[str]     = [],
-        thursday        : list[str]     = [],
-        friday          : list[str]     = [],
-        saturday        : list[str]     = [],
-        sunday          : list[str]     = [],
-        plus            : list[str]     = [],
+        index_start         : int  | None,
+        index_end           : int  | None,
+        delivery_date       : date | None,
+        date_dict           : dict | None   = {},
+        mon                 : list[str]     = [],
+        tue                 : list[str]     = [],
+        wed                 : list[str]     = [],
+        thu                 : list[str]     = [],
+        fri                 : list[str]     = [],
+        sat                 : list[str]     = [],
+        sun                 : list[str]     = [],
+        plus                : list[str]     = [],
     ):
-        self.index_start        = index_start
-        self.index_end          = index_end
-        self.delivery_date      = delivery_date
-        self.date_dict          = date_dict
-        self.monday             = monday
-        self.tuesday            = tuesday
-        self.wednesday          = wednesday
-        self.thursday           = thursday
-        self.friday             = friday
-        self.saturday           = saturday
-        self.sunday             = sunday
-        self.plus               = plus
+        self.index_start    = index_start
+        self.index_end      = index_end
+        self.delivery_date  = delivery_date
+        self.date_dict      = date_dict
+        self.mon            = mon
+        self.tue            = tue
+        self.wed            = wed
+        self.thu            = thu
+        self.fri            = fri
+        self.sat            = sat
+        self.sun            = sun
+        self.plus           = plus
     
     def update_bbds(self, receipt_list: list):
         if self.index_start is None or self.index_end is None:
             raise ValueError
-        delivery_date_raw = re.search(REGEX_DATE_FULL, receipt_list[6])
+        delivery_date_raw = re.search(self.regex_date, receipt_list[6])
         if delivery_date_raw is not None:
             delivery_date_raw = delivery_date_raw.group()
         else:
-            delivery_date_raw = re.search(REGEX_DATE_FULL, receipt_list[7])
+            delivery_date_raw = re.search(self.regex_date, receipt_list[7])
             if delivery_date_raw is not None:
                 delivery_date_raw = delivery_date_raw.group()
         if delivery_date_raw is None:
             raise Exception
-        delivery_date = datetime.strptime(delivery_date_raw,"%d/%m/%Y").date()
+        try:
+            delivery_date = datetime.strptime(delivery_date_raw,"%d/%m/%Y").date()
+        except ValueError:
+            raise ValueError("No date retrieved from receipt_list. Last attempt was with %s", delivery_date_raw)
         self.delivery_date = delivery_date
         # We also need to include the dates for the bbds, ideally this would be external, but oh well.
         date_dict = dict()
         # Using the delivery date create the day<->date dict
         for i in range(1, 8):
             date_dict[(delivery_date + timedelta(days=i)).weekday()] = (delivery_date + timedelta(days=i))
-        tomorrow = (delivery_date + timedelta(days=1)).weekday()
+        tomorrow = self.long_days_list[(delivery_date + timedelta(days=1)).weekday()]
         self.date_dict = date_dict
         reduced_list = receipt_list[self.index_start + 1:self.index_end]
         # The first day has a prefix so we remove it
@@ -218,13 +272,13 @@ class BBDLists:
         if first_day == "tomorrow":
             first_day = tomorrow
         bbd_lists = [[] for _ in range(8)]
-        active_index = self.days.index(first_day) # type: ignore
+        active_index = self.long_days_list.index(first_day) # type: ignore
         # Loop over the relevant lines in the list
         for i in range(1, len(reduced_list)):
             line = reduced_list[i]
             # If the line is a day, we switch to the next bbd
-            if line in self.days:
-                active_index = self.days.index(line)
+            if line in self.long_days_list:
+                active_index = self.long_days_list.index(line)
                 continue
             # This is for the plus list, we use 7 since we use 0-6
             if line == self.plus_string:
@@ -257,5 +311,5 @@ class BBDLists:
                 # if there are no items, add an empty list
                 updated_bbd_lists = updated_bbd_lists + [[]]
         for i in range(7):
-            setattr(self, self.days[i].lower(), updated_bbd_lists[i])
+            setattr(self, self.days_list[i].lower(), updated_bbd_lists[i])
         self.longer = updated_bbd_lists[7]
