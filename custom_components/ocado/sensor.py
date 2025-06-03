@@ -28,13 +28,14 @@ from .const import (
     DAYS,
     DEVICE_CLASS,
     DOMAIN,
+    WEEKDAY_MAP,
     # EMPTY_ATTRIBUTES,
 )
 from .coordinator import OcadoUpdateCoordinator
 from .utils import (
     set_order,
     set_edit_order,
-    # set_receipt,
+    set_bbds,
     set_total,
     detect_attr_changes,
 )
@@ -70,16 +71,8 @@ async def async_setup_entry(
         OcadoUpcoming(coordinator),
         OcadoOrderList(coordinator)
     ]
-    # TODO add a for loop to add bbd sensors, though will always be the weekdays + longer.
-    # Create sensor entities
+    sensors = sensors + create_bbd_sensor_entities(coordinator)
     
-    # async_add_entities(
-        
-    # )
-    # entities = create_sensor_entities(
-    #     coordinator,
-    # )
-    # sensors.append(entities)
     _LOGGER.debug("Adding sensors.")
     async_add_entities(sensors, update_before_add=True)
     _LOGGER.debug("Sensors added.")
@@ -87,11 +80,10 @@ async def async_setup_entry(
 
 
 
-def create_sensor_entities(coordinator, entry_id):
-    """Create sensor entities based on coordinator data."""
+def create_bbd_sensor_entities(coordinator):#, entry_id):
+    """Create bbd sensor entities based on coordinator data."""
     entities = []
-
-    for day in DAYS:
+    for day in DAYS[:-1]:
         entities.append(
             OcadoBBDs(coordinator, day)
         )
@@ -601,7 +593,7 @@ class OcadoOrderList(CoordinatorEntity, SensorEntity): # type: ignore
                         self.async_write_ha_state()
 
 
-class OcadoBBDs(SensorEntity):
+class OcadoBBDs(CoordinatorEntity, SensorEntity): # type: ignore
     """This sensor returns the best before dates of the most recent delivery."""
 
     _attr_device_class = DEVICE_CLASS # type: ignore
@@ -609,14 +601,15 @@ class OcadoBBDs(SensorEntity):
     def __init__(self, coordinator: OcadoUpdateCoordinator, day: str, context: Any = None,) -> None:
         """Initialise the sensor."""
         super().__init__(coordinator, context=context) # type: ignore
-        self.coordinator = coordinator
-        self.device_id = "Ocado BBDs"
-        self._hass_custom_attributes = {}
-        self._attr_name = f"Ocado BB {day.capitalize}"
-        self._attr_unique_id = "ocado_bbd_{day}"
-        # self._globalid = "ocado_bbds"
-        self._attr_icon = "mdi:cart-outline"
-        self._attr_state = None
+        self.coordinator                = coordinator
+        self.device_id                  = "Ocado BBDs"
+        self._hass_custom_attributes    = {}
+        self._attr_name                 = f"Ocado Best Before {WEEKDAY_MAP[day].capitalize()}"
+        self._attr_unique_id            = f"ocado_bbd_{day}"
+        self._globalid                  = f"ocado_bbds_{day}"
+        self._attr_icon                 = "mdi:cart-outline"
+        self._attr_state                = None
+        self._day                       = day
 
     async def async_added_to_hass(self):
         _LOGGER.debug("Running async_added_to_hass")
@@ -642,7 +635,7 @@ class OcadoBBDs(SensorEntity):
     def extra_state_attributes(self): # type: ignore
         """Return the state attributes of the sensor."""
         return self._hass_custom_attributes
-    
+
     @callback
     def _handle_coordinator_update(self) -> None:
         """Fetch the latest data from the coordinator."""
@@ -650,21 +643,45 @@ class OcadoBBDs(SensorEntity):
         
         ocado_data = self.coordinator.data
         if not ocado_data:
-            _LOGGER.warning("Coordinator data is None for %s", self.entity_id)
-            self._attr_state = None
-            return
+            if self.entity_id is None:
+                _LOGGER.warning("Coordinator data is None for %s", self.entity_id)
+                self._attr_state = None
+                self._attr_icon = "mdi:help-circle"
+                self._hass_custom_attributes = {
+                    "updated"        : datetime.now(),
+                    "order_number"   : None,
+                    "date"           : None,
+                    "bbds"           : [],
+                }
+                return
+            else:
+                return
         
-        orders = ocado_data.get("orders")
-        if orders is not None:
-            self._attr_state = datetime.now() # type: ignore
-            self._attr_icon = "mdi:clipboard-list"
-            self._hass_custom_attributes = {
-                "orders": orders
-                
-            }
-        else:
+        now = datetime.now()
+        day_list = ocado_data.get("receipt")
+        
+        if day_list is not None:
+            result = set_bbds(self, day_list, self._day, now) # type: ignore
+            _LOGGER.debug("Set_bbds returned %s", result)
+        else:            
             self._attr_state = None
             self._attr_icon = "mdi:help-circle"
             self._hass_custom_attributes = {
-                "orders": []
+                "updated"       : datetime.now(),
+                "order_number"  : None,
+                "date"          : None,
+                "bbds"          : None,
             }
+        # Check if the attributes need updating
+        if self.entity_id is not None:
+            current = self.hass.states.get(self.entity_id)
+            new = self._hass_custom_attributes
+            
+            if current is None:
+                self.async_write_ha_state()
+                return
+            
+            old = current.attributes
+            if detect_attr_changes(new, old):
+                _LOGGER.debug("Updating due to new attributes")
+                self.async_write_ha_state()

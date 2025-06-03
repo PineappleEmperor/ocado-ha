@@ -18,7 +18,7 @@ button_card_templates:
       show_state: true
       state_display: |
         [[[
-          if (entity.state == null)
+          if (entity.state == null || entity.state == "unavailable")
             return '-';
           var date = new Date(entity.state)
           if (date.length > 8)
@@ -38,7 +38,7 @@ button_card_templates:
         time: |
           [[[
             var time = variables.time
-            if (time == null)
+            if (time == null || time == "unavailable")
               return '-';
             if (time.length == 4)
               return time;
