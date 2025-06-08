@@ -1,12 +1,11 @@
-[![release](https://img.shields.io/github/v/release/PineappleEmperor/ocado-ha)](https://github.com/PineappleEmperor/ocado-ha/releases)
-[![commits-since-latest](https://img.shields.io/github/commits-since/PineappleEmperor/ocado-ha/latest?style=flat-square)](https://github.com/PineappleEmperor/ocado-ha/commits/main/)
-![stars](https://img.shields.io/github/stars/PineappleEmperor/ocado-ha?style=flat)
-![GitHub Downloads (all assets, all releases)](https://img.shields.io/github/downloads/PineappleEmperor/ocado-ha/total)
+[![release][release-badge]][release-url]
+[![commits-since-latest][commits-badge]][commits-url]
+![stars][stars-badge]
+![Dynamic Regex Badge][hacs-badge]
 \
-![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/PineappleEmperor/ocado-ha/python_validate.yml?style=flat-square&label=Python)
-![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/PineappleEmperor/ocado-ha/hassfest_validate.yml?style=flat-square&label=Hassfest)
-![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/PineappleEmperor/ocado-ha/hacs_validate.yml?style=flat-square&label=HACS%20valid)
-[![hacs_badge](https://img.shields.io/badge/HACS-Custom-41BDF5.svg?style=flat-square)](https://github.com/hacs/integration)
+![build][python-badge]
+![build][hassfest-badge]
+![build][hacs-valid-badge]
 
 Ocado UK Integration for Home Assistant
 =====================================
@@ -53,11 +52,11 @@ Features
 
 [Custom Button Card](/docs/community_templates/custom_button_card.yaml) by @PineappleEmperor
 \
-<img src="/docs/images/custom_button_card.png" alt="Example Custom Button Card" width="250"/>
+<img src="/docs/images/custom_button_card.png" alt="Example Custom Button Card" width="500"/>
 
 [Bubble Popup Card with Markdown](/docs/community_templates/bubble_card_markdown.yaml) by @PineappleEmperor
 \
-<img src="/docs/images/bubble_card_markdown.png" alt="Example Bubble Card Popup with Markdown (for BBDs)" width="250"/>
+<img src="/docs/images/bubble_card_markdown.png" alt="Example Bubble Card Popup with Markdown (for BBDs)" width="500"/>
 
 ### Tips & Tricks
 
@@ -253,3 +252,20 @@ Future Plans
 --------
 1. Testing 😅
 3. Other online grocery vendors? (in separate repos)
+
+<!-- Badges -->
+
+[commits-badge]: https://img.shields.io/github/commits-since/PineappleEmperor/ocado-ha/latest?style=flat-square
+[downloads-badge]: https://img.shields.io/github/downloads/pineappleemperor/ocado-ha/total?style=flat-square
+[hacs-badge]: https://img.shields.io/badge/dynamic/regex?url=https%3A%2F%2Fraw.githubusercontent.com%2Fhacs%2Fdefault%2Frefs%2Fheads%2Fmaster%2Fintegration&search=(%22PineappleEmperor%2Focado-ha%22)&replace=default&style=flat-square&label=hacs&link=https%3A%2F%2Fgithub.com%2Fhacs%2Fintegration
+[hacs-valid-badge]: https://img.shields.io/github/actions/workflow/status/PineappleEmperor/ocado-ha/hacs_validate.yml?style=flat-square&label=hacs%20valid
+[hassfest-badge]: https://img.shields.io/github/actions/workflow/status/PineappleEmperor/ocado-ha/hassfest_validate.yml?style=flat-square&label=hassfest
+[python-badge]: https://img.shields.io/github/actions/workflow/status/PineappleEmperor/ocado-ha/python_validate.yml?style=flat-square&label=python
+[release-badge]: https://img.shields.io/github/v/release/PineappleEmperor/ocado-ha?style=flat-square
+[stars-badge]: https://img.shields.io/github/stars/PineappleEmperor/ocado-ha?style=flat-square
+
+<!-- References -->
+
+[commits-url]: https://github.com/PineappleEmperor/ocado-ha/commits/main/
+[hacs-url]: https://github.com/hacs/integration
+[release-url]: https://github.com/PineappleEmperor/ocado-ha/releases

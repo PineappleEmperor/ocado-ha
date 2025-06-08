@@ -70,6 +70,10 @@ jobs:
             BUMP="xfeature"
           elif echo "$LABELS" | grep -qi '!feature'; then
             BUMP="xfeature"
+          elif echo "$LABELS" | grep -qi 'xfeat'; then
+            BUMP="xfeature"
+          elif echo "$LABELS" | grep -qi 'xfeature'; then
+            BUMP="xfeature"
           elif echo "$LABELS" | grep -qi 'feat'; then
             BUMP="feature"
           elif echo "$LABELS" | grep -qi 'feature'; then

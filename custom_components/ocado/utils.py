@@ -117,7 +117,7 @@ def get_edit_datetime(message: str) -> datetime:
 
 def get_order_number(message: str) -> str:
     """Parse the order number."""
-    raw = re.search(r"(?:Order\sref\.:)?(?:Order\sis\s)?(?:\s{1,20})(?P<order_number>\d{10})",message)
+    raw = re.search(r"(?:Order\sref(\.|erence):)?(?:Order\sis\s)?(?:\s{1,20})(?P<order_number>\d{10})",message)
     if raw:
         return raw.group('order_number')
     _LOGGER.error("No order number retrieved from message %s.", message[:20])

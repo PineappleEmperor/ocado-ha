@@ -14,6 +14,6 @@
       "python-dateutil==2.9.0",
       "pypdf==5.5.0"
     ],
-    "single_config_entry": true,    
+    "single_config_entry": true,
     "version": "1.1.0"
   }
