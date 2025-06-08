@@ -247,7 +247,6 @@ It has four attributes:
 Future Plans
 --------
 1. Testing 😅
-3. Other online grocery vendors? (in separate repos)
 
 <!-- Badges -->
 
