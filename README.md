@@ -54,6 +54,10 @@ Features
 \
 <img src="/docs/images/custom_button_card.png" alt="Example Custom Button Card" width="500"/>
 
+[Bubble Popup Card with Markdown](/docs/community_templates/bubble_card_markdown.yaml) by @PineappleEmperor
+\
+<img src="/docs/images/bubble_card_markdown.png" alt="Example Bubble Card Popup with Markdown (for BBDs)" width="500"/>
+
 ### Tips & Tricks
 
 * I send a reminder to edit my next delivery via a notification an hour before the edit deadline. To do this I created a template sensor for the countdown and a datetime helper to store the current edit deadline:
@@ -119,10 +123,13 @@ mode: single
 I also have a grocery budget 'pot' and an extension to the notification can inform me if I need to top up the pot based on the estimated total.
 
 
-### Sensors
+### Devices & Sensors
 
-The integration (currently) offers 5 sensors in a single device:
-
+The integration offers 2 devices. The first contains the details about upcoming orders:
+<details>
+<summary><strong>Ocado (UK) Deliveries</strong></summary>
+This device has 5 sensors:
+<div style="margin-left: 25px;">
 <details>
 <summary><strong>Last Total Sensor</strong></summary>
 <div style="margin-left: 25px;">
@@ -213,12 +220,37 @@ It has a single attribute:
 
 </div>
 </details>
+</div>
+</details>
 
+
+<details>
+<summary><strong>Ocado (UK) Deliveries</strong></summary>
+<div style="margin-left: 25px;">
+This device has a sensor for each day of the week:
+<details>
+<summary><strong>{{day}} Sensor</strong></summary>
+<div style="margin-left: 25px;">
+
+This sensor provides number of best before dates on the chosen day/date.
+
+It has four attributes:
+
+| **Attribute**     | **Description**                                            |
+|-------------------|------------------------------------------------------------|
+| **Updated**       | This is the datetime of the email the info was taken from. |
+| **Order Number**  | The order number associated with the total.                |
+| **Date**          | The date teh day falls on (i.e. the best before date).     |
+| **BBDs**          | The list of items with a best before date on this date.    |
+
+</div>
+</details>
+</div>
+</details>
 
 Future Plans
 --------
 1. Testing 😅
-2. Adding best before date sensors from the last delivery via the PDF receipt that is sent.
 3. Other online grocery vendors? (in separate repos)
 
 <!-- Badges -->
