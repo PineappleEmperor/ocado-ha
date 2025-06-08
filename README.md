@@ -129,7 +129,6 @@ The integration offers 2 devices. The first contains the details about upcoming 
 <details>
 <summary><strong>Ocado (UK) Deliveries</strong></summary>
 This device has 5 sensors:
-<div style="margin-left: 25px;">
 <details>
 <summary><strong>Last Total Sensor</strong></summary>
 <div style="margin-left: 25px;">
@@ -220,13 +219,11 @@ It has a single attribute:
 
 </div>
 </details>
-</div>
 </details>
 
 
 <details>
-<summary><strong>Ocado (UK) Deliveries</strong></summary>
-<div style="margin-left: 25px;">
+<summary><strong>Ocado (UK) Best Befores</strong></summary>
 This device has a sensor for each day of the week:
 <details>
 <summary><strong>{{day}} Sensor</strong></summary>
@@ -245,7 +242,6 @@ It has four attributes:
 
 </div>
 </details>
-</div>
 </details>
 
 Future Plans
