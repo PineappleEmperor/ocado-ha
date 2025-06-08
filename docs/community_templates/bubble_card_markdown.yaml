@@ -1,0 +1,91 @@
+#########################################################################################
+# Made by @PineappleEmperor
+# Requires the fantastic bubble card available from HACS
+#########################################################################################
+type: vertical-stack
+cards:
+  - type: custom:bubble-card
+    card_type: pop-up
+    # You will need to have some kind of navigation action that points to the hash
+    hash: "#ocado"
+    name: Ocado
+    # You may not have this icon so change it to whatever you prefer
+    icon: fapro:noun-swirl
+    width_desktop: 70%
+    margin_top_mobile: "-56px"
+    margin_top_desktop: 74px
+    auto_close: ""
+    hide_backdrop: false
+    bg_blur: 88
+    show_last_changed: false
+    title: Ocado Best Before Dates
+    button_type: name
+    show_icon: true
+    show_name: true
+    sub_button: []
+    bg_opacity: "88"
+    shadow_opacity: "0"
+    modules:
+      - default
+  - type: markdown
+    content: |-
+      {% set ocado_bbds = [
+        "sensor.ocado_best_before_monday",
+        "sensor.ocado_best_before_tuesday",
+        "sensor.ocado_best_before_wednesday",
+        "sensor.ocado_best_before_thursday",
+        "sensor.ocado_best_before_friday",
+        "sensor.ocado_best_before_saturday",
+        "sensor.ocado_best_before_sunday"
+      ] %}
+
+      # This uses the time_date platform date sensor to avoid updating every minute with now().date()
+      {% set today = (states('sensor.date')|as_datetime).date() %}
+
+      {% set colours = ["#df0334", "#f16c28", "#f6bf26", "#33b679", "#039be5",
+      "#0047ab", "#8e24aa"] %}
+
+      {% set suffixes = {1: "st", 2: "nd", 3: "rd"} %}
+
+
+      {% set ns = namespace(dict_list = []) %}
+
+      {% for entity in ocado_bbds %}
+
+      {% set ns.dict_list = ns.dict_list + [{"entity_id": entity, "date":
+      state_attr(entity, "date"), "bbds": state_attr(entity, "bbds"), "icon":
+      state_attr(entity, "icon")}] %}
+
+      {% endfor %}
+
+
+      {% set sorted_list = ns.dict_list | sort(attribute="date") %}
+      {% set output = namespace(string="") %}
+
+      {% for i in range(sorted_list|length) %}
+        {% set entity = sorted_list[i] %}
+        {% if entity["bbds"] != [] %}
+          {% if entity["date"] >= today %}
+            {% set entity_id = entity["entity_id"] %}
+            {% set day = state_attr(entity_id,'date').strftime('%-d')|int(0) %}
+            {% set suffix = suffixes[day % 20] if (day % 20) in suffixes else 'th' %}
+            {% set day = day|string + suffix %}
+            {% set header = "## <font color= " + colours[i] + "> <ha-icon icon=" + entity["icon"] + "></ha-icon> " + entity["date"].strftime('%A') + " - " + day + "</font>" %}
+            {% set output.string = output.string + header + "\n" %}
+            {% for item in entity["bbds"] %}
+              {% set output.string = output.string + "- " + item + "\n" %}
+            {% endfor %}
+            {% set output.string = output.string + "---\n" %}
+          {% endif %}
+        {% endif %}
+      {% endfor %}
+      {{ output.string }}
+    card_mod:
+      style: |
+        ha-card {
+          --mdc-icon-size: 60px;
+          margin: 0px 0px 0px 0px;
+          border: none;
+        }
+view_layout:
+  grid-area: hidden1
