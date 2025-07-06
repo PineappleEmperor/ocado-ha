@@ -176,12 +176,13 @@ def email_triage(self) -> tuple[list[Any], OcadoEmails | None]:
                         if part.get_content_type() == 'application/pdf':
                             pdf_data = part.get_payload(decode=True)
                             pdf_stream = io.BytesIO(pdf_data) # type: ignore
+                            receipt_list = []
                             try:
                                 reader = PdfReader(pdf_stream)
-                                page = reader.pages[0]
-                                receipt_list = page.extract_text().split('\n')
+                                pages = reader.pages    
+                                for page in pages:
+                                    receipt_list += page.extract_text().split('\n')
                             except:  # noqa: E722
-                                receipt_list = []
                                 continue
                             # Calculate the indices of the different lists
                             fridge_index = HeaderIndex("Fridge", receipt_list)
@@ -198,12 +199,13 @@ def email_triage(self) -> tuple[list[Any], OcadoEmails | None]:
                                 else:
                                     fridge.index_end = end_index
                             # Now calculate the BBDs properly
-                            delivery_date_raw = re.search(REGEX_DATE_FULL, receipt_list[6])
+                            delivery_date_raw = re.search(REGEX_DATE_FULL, receipt_list[11])
                             if delivery_date_raw is not None:
                                 delivery_date_raw = delivery_date_raw.group()
-                                _LOGGER.debug("delivery_date_raw found (in 6) as %s", delivery_date_raw)
+                                _LOGGER.debug("delivery_date_raw found (in 11) as %s", delivery_date_raw)
                             else:
-                                delivery_date_raw = re.search(REGEX_DATE_FULL, receipt_list[7])
+                                delivery_date_regex = r"Delivery date:\s(?:" + REGEX_DAY_FULL + r")\s" + REGEX_DATE_FULL
+                                delivery_date_raw = re.search(delivery_date_regex, "\n".join(receipt_list))
                                 if delivery_date_raw is not None:
                                     delivery_date_raw = delivery_date_raw.group()
                                     _LOGGER.debug("delivery_date_raw found (in 7) as %s", delivery_date_raw)

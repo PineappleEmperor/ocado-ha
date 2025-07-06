@@ -55,7 +55,7 @@ REGEX_TIME = r"([01][0-9]|2[0-3]):([0-5][0-9])([AaPp][Mm])?"
 REGEX_ORDINALS = r"st|nd|rd|th"
 
 REGEX_AMOUNT = r"(?:\d+x)?\d+k?(?:g|l|ml)"
-REGEX_COLUMNS = r"\s?\d+\/\d+\s?\d+.\d{2}\*?"
+REGEX_COLUMNS = r"\s?\d+\/\d+\s?\£\d+.\d{2}\*?"
 REGEX_EACH = r"\((?:£|\\u00a3)\d+\.\d{2}\/\s?each\)"
 
 STRING_PLUS = "Products with a 'use-by' date over one week"
@@ -244,11 +244,12 @@ class BBDLists:
     def update_bbds(self, receipt_list: list):
         if self.index_start is None or self.index_end is None:
             raise ValueError
-        delivery_date_raw = re.search(self.regex_date, receipt_list[6])
+        delivery_date_raw = re.search(self.regex_date, receipt_list[11])
         if delivery_date_raw is not None:
             delivery_date_raw = delivery_date_raw.group()
         else:
-            delivery_date_raw = re.search(self.regex_date, receipt_list[7])
+            delivery_date_regex = r"Delivery date:\s(?:" + REGEX_DAY_FULL + r")\s" + REGEX_DATE_FULL
+            delivery_date_raw = re.search(delivery_date_regex, "\n".join(receipt_list))
             if delivery_date_raw is not None:
                 delivery_date_raw = delivery_date_raw.group()
         if delivery_date_raw is None:
