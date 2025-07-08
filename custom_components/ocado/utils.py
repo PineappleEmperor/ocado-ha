@@ -3,8 +3,8 @@ from datetime import date, datetime, timedelta
 from email import policy
 from email.parser import BytesParser
 from imaplib import IMAP4_SSL as imap
-import io
-from pypdf import PdfReader
+# import io
+# from pypdf import PdfReader
 import json
 import logging
 import re
@@ -19,7 +19,7 @@ from .const import(
     OCADO_SMARTPASS_SUBJECT,
     OCADO_SUBJECT_DICT,
     REGEX_DATE,
-    REGEX_DATE_FULL,
+    # REGEX_DATE_FULL,
     REGEX_DAY_FULL,
     REGEX_MONTH_FULL,
     REGEX_YEAR,
@@ -32,7 +32,7 @@ from .const import(
     OcadoEmail,
     OcadoEmails,
     OcadoOrder,
-    BBDLists,
+    # BBDLists,
     OcadoReceipt,
     EMPTY_ORDER,
     DAYS,
