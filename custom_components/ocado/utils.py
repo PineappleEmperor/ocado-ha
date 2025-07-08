@@ -1,8 +1,7 @@
 """Utilities for Ocado UK"""
-import base64
 from datetime import date, datetime, timedelta
-import email
-from email.policy import default as default_policy
+from email import policy
+from email.parser import BytesParser
 from imaplib import IMAP4_SSL as imap
 import io
 from pypdf import PdfReader
@@ -10,11 +9,12 @@ import json
 import logging
 import re
 from typing import Any
-
+from bs4 import BeautifulSoup
 from dateutil.parser import parse
 
 from .const import(
     OCADO_ADDRESS,
+    NEW_OCADO_ADDRESS,
     OCADO_CUTOFF_SUBJECT,
     OCADO_SMARTPASS_SUBJECT,
     OCADO_SUBJECT_DICT,
@@ -24,6 +24,7 @@ from .const import(
     REGEX_MONTH_FULL,
     REGEX_YEAR,
     REGEX_TIME,
+    REGEX_NOT_ISO_TIME,
     REGEX_ORDINALS,
     STRING_NO_BBD,
     REGEX_END_INDEX,
@@ -59,38 +60,50 @@ def get_email_from_datetime(email_date_raw: str) -> date:
 
 def get_estimated_total(message: str) -> str:
     """Find and return the estimated total from a 'what you returned' email."""
-    pattern = r"Total\s\(estimated\):\s{1,20}(?P<total>\d+.\d{2})\sGBP"
-    raw = re.search(pattern, message)
+    pattern = r"(?:Total\s\(estimated\)\:\s£)(?P<total>\d+.\d{1,2})"
+    raw = re.search(pattern, message, re.MULTILINE)
     if raw:
         return raw.group('total')
+    else:
+        pattern = r"Total\s\(estimated\):\s{1,20}(?P<total>\d+.\d{2})\sGBP"
+        raw = re.search(pattern, message, re.MULTILINE)
+        if raw:
+            return raw.group('total')
     _LOGGER.error("Failed to parse estimated total from message.")
     raise ValueError("Failed to parse estimated total from message.")
 
 
 def get_delivery_datetimes(message: str | None) -> tuple[datetime, datetime] | tuple[None, None]:
     """Parse and return the delivery datetime."""
-    pattern = fr"Delivery\sdate:\s{{1,20}}(?:{REGEX_DAY_FULL})\s(?P<day>{REGEX_DATE})\s(?P<month>{REGEX_MONTH_FULL})"
     if message is None:
-        return None, None
-    raw = re.search(pattern, message)
+        return None, None    
+    pattern = fr"(?:Delivery\sdate:\s)(?P<day>{REGEX_DATE})\s(?P<month>{REGEX_MONTH_FULL})\s(?P<year>{REGEX_YEAR})"
+    raw = re.search(pattern, message, re.MULTILINE)
     if raw:
         month = raw.group('month')
         day = raw.group('day')
+        year = raw.group('year')
     else:
-        _LOGGER.error("Delivery date not found when retrieving delivery datetime from message.")
-        raise ValueError("Delivery date not found when retrieving delivery datetime from message.")
-    pattern = fr"(?P<day>{REGEX_DATE})(?:{REGEX_ORDINALS})\s(?P<month>{REGEX_MONTH_FULL})\s(?P<year>{REGEX_YEAR})"
-    year_raw = re.search(pattern, message)
-    if year_raw:
-        year = year_raw.group('year')
-        # in case the delivery occurs after NY, since the year comes from the edit date
-        if year_raw.group('month') == 'December' and month == 'January':
-            year = str(int(year) + 1)
-    else:
-        _LOGGER.error("Year not found when retrieving delivery datetime from message.")
-        raise ValueError("Year not found when retrieving delivery datetime from message.")
-    pattern = fr"Delivery\stime:\s{{1,20}}(?P<start>{REGEX_TIME})\sand\s(?P<end>{REGEX_TIME})"
-    delivery_time_raw = re.search(pattern, message)    
+        pattern = fr"Delivery\sdate:\s{{1,20}}(?:{REGEX_DAY_FULL})\s(?P<day>{REGEX_DATE})\s(?P<month>{REGEX_MONTH_FULL})"
+        raw = re.search(pattern, message, re.MULTILINE)
+        if raw:
+            month = raw.group('month')
+            day = raw.group('day')
+            pattern = fr"(?P<day>{REGEX_DATE})(?:{REGEX_ORDINALS})\s(?P<month>{REGEX_MONTH_FULL})\s(?P<year>{REGEX_YEAR})"
+            year_raw = re.search(pattern, message)
+            if year_raw:
+                year = year_raw.group('year')
+                # in case the delivery occurs after NY, since the year comes from the edit date
+                if year_raw.group('month') == 'December' and month == 'January':
+                    year = str(int(year) + 1)
+            else:
+                _LOGGER.error("Year not found when retrieving delivery datetime from message.")
+                raise ValueError("Year not found when retrieving delivery datetime from message.")
+        else:
+            _LOGGER.error("Delivery date not found when retrieving delivery datetime from message.")
+            raise ValueError("Delivery date not found when retrieving delivery datetime from message.")
+    pattern = fr"(?:Delivery\stime:)(?:\sBetween)?(?:\s{{1,20}})(?P<start>{REGEX_TIME})\sand\s(?P<end>{REGEX_TIME})"
+    delivery_time_raw = re.search(pattern, message, re.MULTILINE)    
     if delivery_time_raw:
         start_time = re.sub(r"pm",r"PM",re.sub(r"am",r"AM",delivery_time_raw.group('start')))
         end_time = re.sub(r"pm",r"PM",re.sub(r"am",r"AM",delivery_time_raw.group('end')))
@@ -111,13 +124,21 @@ def get_edit_datetime(message: str) -> datetime:
     if raw:
         edit_datetime_raw = raw.group('year') + '-' + raw.group('month') + '-' + raw.group('day') + ' ' + raw.group('time')
         return datetime.strptime(edit_datetime_raw,'%Y-%B-%d %H:%M')
+    else:
+        pattern = fr"(?:You\scan\sedit\sthis\sorder\suntil:?\s)(?P<time>{REGEX_NOT_ISO_TIME})(?:,\s)(?P<day>{REGEX_DATE})\s(?P<month>{REGEX_MONTH_FULL})\s(?P<year>{REGEX_YEAR})"
+        raw = re.search(pattern, message, re.MULTILINE)
+        if raw:
+            edit_datetime_raw = raw.group('year') + '-' + raw.group('month') + '-' + raw.group('day') + ' 0' + raw.group('time')
+            edit_datetime_raw = re.sub(r"pm",r"PM",re.sub(r"am",r"AM",edit_datetime_raw))
+            _LOGGER.debug(edit_datetime_raw)
+            return datetime.strptime(edit_datetime_raw,'%Y-%B-%d %I:%M%p')
     _LOGGER.error("No edit date found in message.")
     raise ValueError("No edit date found in message.")
 
 
 def get_order_number(message: str) -> str:
     """Parse the order number."""
-    raw = re.search(r"(?:Order\sref(\.|erence):)?(?:Order\sis\s)?(?:\s{1,20})(?P<order_number>\d{10})",message)
+    raw = re.search(r"(?:Order\sref(?:\.|erence):\s)?(?:Order\sis\s)?(?P<order_number>\d{10,14})",message)
     if raw:
         return raw.group('order_number')
     _LOGGER.error("No order number retrieved from message %s.", message[:20])
@@ -138,7 +159,7 @@ def email_triage(self) -> tuple[list[Any], OcadoEmails | None]:
     server = imap(host = self.imap_host, port = self.imap_port, timeout= 30)
     server.login(self.email_address, self.password)
     server.select(self.imap_folder, readonly=True)
-    pattern = fr'SINCE "{(today - timedelta(days=self.imap_days)).strftime("%d-%b-%Y")}" FROM "{OCADO_ADDRESS}" NOT SUBJECT "{OCADO_CUTOFF_SUBJECT}" NOT SUBJECT "{OCADO_SMARTPASS_SUBJECT}"'
+    pattern = fr'SINCE "{(today - timedelta(days=self.imap_days)).strftime("%d-%b-%Y")}" (OR (FROM "{OCADO_ADDRESS}") (FROM "{NEW_OCADO_ADDRESS}")) NOT SUBJECT "{OCADO_CUTOFF_SUBJECT}" NOT SUBJECT "{OCADO_SMARTPASS_SUBJECT}"'
     result, message_ids = server.search(None, pattern)
     if result != "OK":
         _LOGGER.error("Could not connect to inbox.")
@@ -171,7 +192,7 @@ def email_triage(self) -> tuple[list[Any], OcadoEmails | None]:
                 # We only care about the most recent receipt
                 if ocado_receipt is None:
                     ocado_receipt = OcadoReceipt(ocado_email.date, ocado_email.order_number)
-                    email_message = email.message_from_bytes(message_data, policy=default_policy) # type: ignore
+                    email_message = BytesParser(policy=policy.default).parsebytes(message_data) # type: ignore
                     for part in email_message.iter_attachments():
                         if part.get_content_type() == 'application/pdf':
                             pdf_data = part.get_payload(decode=True)
@@ -250,35 +271,39 @@ def email_triage(self) -> tuple[list[Any], OcadoEmails | None]:
     return message_ids, triaged_emails
 
 
-def _ocado_email_typer(subject: str) -> str:
+def _ocado_email_typer(subject: str | None) -> str:
     """Classify the type of Ocado email."""
+    if subject is None:
+        return "Unknown"
     ocado_email_type = OCADO_SUBJECT_DICT.get(subject, "Unknown")
     return ocado_email_type
 
 
 def _parse_email(message_id: bytes, message_data: bytes) -> OcadoEmail:
     """Given message data, return RetrievedEmail object."""
-    email_message = email.message_from_bytes(message_data, policy=default_policy)
+    email_message = BytesParser(policy=policy.default).parsebytes(message_data)
+    # First try plaintext
+    email_body = ""
+    plaintext = email_message.get_body(preferencelist=('plain',))
+    if plaintext:
+        email_body = plaintext.get_content()
+    else:
+        # Now fallback to HTML..
+        html = email_message.get_body(preferencelist=('html',))
+        if html:
+            html_body = html.get_content()
+            soup = BeautifulSoup(html_body, 'html.parser')
+            email_body = soup.get_text(separator='\n', strip=True)
+        else:
+            _LOGGER.error("Email subject %s body couldn't be parsed.", email_message.get("Subject"))
+            raise ValueError("Email subject %s body couldn't be parsed.", email_message.get("Subject"))
+    order_number = get_order_number(email_body)
     email_date = get_email_from_datetime(email_message.get("Date")) # type: ignore
     email_from_address = get_email_from_address(email_message.get('From')) # type: ignore
     email_subject = email_message.get("Subject")
-    email_body = ""
-    # multipart will return true if there are attachments, text, html versions of the body, etc.
-    # if multipart returns true, get_payload will return a list instead of a string.
-    if email_message.is_multipart():
-        email_body = (email_message.get_body(preferencelist=('plain','html'))).as_string() # type: ignore
-    # best guess with HTML emails, which we need to use in some situations to grab tracking numbers
-    else:
-        email_body = email_message.get_body().as_string().replace('=','').replace('\n','') # type: ignore
-    if re.search(r"base64",email_body):
-        # need to remove the encoding info before decoding
-        email_body = re.sub(r"(?:.*\n.*)(base64\n\n)","",email_body)
-        email_body = base64.b64decode(email_body.encode("utf8")).decode("utf8")
-    order_number = get_order_number(email_body)
-    # need to add the receipt download for
     ocado_email = OcadoEmail(
         message_id          = message_id,
-        email_type          = _ocado_email_typer(email_subject), # type: ignore
+        email_type          = _ocado_email_typer(email_subject),
         date                = email_date,
         from_address        = email_from_address,
         subject             = email_subject,
@@ -290,16 +315,20 @@ def _parse_email(message_id: bytes, message_data: bytes) -> OcadoEmail:
 
 def total_parse(ocado_email: OcadoEmail) -> OcadoOrder:
     """Parse an Ocado total email into an OcadoOrder object."""
-    # TODO return order number and actual total.
     message = ocado_email.body
     if message is None:
         return EMPTY_ORDER
-    pattern = r"New\sorder\stotal:\s{1,20}(?P<total>\d+.\d{1,2})\sGBP"
-    raw = re.search(pattern, message)
+    pattern = r"(?:New\sorder\stotal\s=\s£)(?P<total>\d+.\d{1,2})"
+    raw = re.search(pattern, message, re.MULTILINE)
     if raw:
         total = raw.group("total")
-    else:
-        total = None
+    else: 
+        pattern = r"New\sorder\stotal:\s{1,20}(?P<total>\d+.\d{1,2})\sGBP"
+        raw = re.search(pattern, message)
+        if raw:
+            total = raw.group("total")
+        else:
+            total = None
     total = OcadoOrder(
         updated             = ocado_email.date,
         order_number        = ocado_email.order_number,

@@ -6,6 +6,7 @@ import re
 DOMAIN = "ocado"
 
 OCADO_ADDRESS =                 "customerservices@ocado.com"
+NEW_OCADO_ADDRESS =             "noreply@email.ocado.com"
 OCADO_CANCELLATION_SUBJECT =    "Order cancellation confirmation"
 OCADO_CONFIRMATION_SUBJECT =    "Confirmation of your order"
 OCADO_CUTOFF_SUBJECT =          "Don't miss the cut-off time for editing your order"
@@ -58,7 +59,7 @@ REGEX_NOT_ISO_TIME = r"([0-9]|2[0-3]):([0-5][0-9])([AaPp][Mm])?"
 REGEX_ORDINALS = r"st|nd|rd|th"
 
 REGEX_AMOUNT = r"(?:\d+x)?\d+k?(?:g|l|ml)"
-REGEX_COLUMNS = r"\s?\d+\/\d+\s?\£\d+.\d{2}\*?"
+REGEX_COLUMNS = r"\s?\d+\/\d+\s?\d+.\d{2}\*?"
 REGEX_EACH = r"\((?:£|\\u00a3)\d+\.\d{2}\/\s?each\)"
 
 STRING_PLUS = "Products with a 'use-by' date over one week"
