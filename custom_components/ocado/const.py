@@ -6,17 +6,20 @@ import re
 DOMAIN = "ocado"
 
 OCADO_ADDRESS =                 "customerservices@ocado.com"
+NEW_OCADO_ADDRESS =             "noreply@email.ocado.com"
 OCADO_CANCELLATION_SUBJECT =    "Order cancellation confirmation"
 OCADO_CONFIRMATION_SUBJECT =    "Confirmation of your order"
 OCADO_CUTOFF_SUBJECT =          "Don't miss the cut-off time for editing your order"
 OCADO_NEW_TOTAL_SUBJECT =       "What you returned, and your new total"
 OCADO_RECEIPT_SUBJECT =         "Your receipt for today's Ocado delivery"
+OCADO_NEW_NEW_TOTAL_SUBJECT =   "Your receipt and updates for today’s delivery"
 OCADO_SMARTPASS_SUBJECT =       "Payment successful: Smart Pass membership"
 OCADO_SUBJECT_DICT = {
     OCADO_CANCELLATION_SUBJECT: "cancellation",
     OCADO_CONFIRMATION_SUBJECT: "confirmation",
     OCADO_NEW_TOTAL_SUBJECT:    "new_total",
-    OCADO_RECEIPT_SUBJECT:      "receipt"
+    OCADO_RECEIPT_SUBJECT:      "receipt",
+    OCADO_NEW_NEW_TOTAL_SUBJECT:"new_total"
 }
 
 CONF_IMAP_DAYS =     'imap_days'
@@ -52,6 +55,7 @@ REGEX_YEAR = r"(?:19|20)\d{2}"
 # If this eventually fails due to other formats being used, python-dateutil should be used
 REGEX_DATE_FULL = r"((?:" + REGEX_DATE + r")\/(?:" + REGEX_MONTH + r")\/(?:" + REGEX_YEAR + r"))"
 REGEX_TIME = r"([01][0-9]|2[0-3]):([0-5][0-9])([AaPp][Mm])?"
+REGEX_NOT_ISO_TIME = r"([0-9]|2[0-3]):([0-5][0-9])([AaPp][Mm])?"
 REGEX_ORDINALS = r"st|nd|rd|th"
 
 REGEX_AMOUNT = r"(?:\d+x)?\d+k?(?:g|l|ml)"
@@ -244,11 +248,12 @@ class BBDLists:
     def update_bbds(self, receipt_list: list):
         if self.index_start is None or self.index_end is None:
             raise ValueError
-        delivery_date_raw = re.search(self.regex_date, receipt_list[6])
+        delivery_date_raw = re.search(self.regex_date, receipt_list[11])
         if delivery_date_raw is not None:
             delivery_date_raw = delivery_date_raw.group()
         else:
-            delivery_date_raw = re.search(self.regex_date, receipt_list[7])
+            delivery_date_regex = r"Delivery date:\s(?:" + REGEX_DAY_FULL + r")\s" + REGEX_DATE_FULL
+            delivery_date_raw = re.search(delivery_date_regex, "\n".join(receipt_list))
             if delivery_date_raw is not None:
                 delivery_date_raw = delivery_date_raw.group()
         if delivery_date_raw is None:

@@ -598,6 +598,9 @@ class OcadoBBDs(CoordinatorEntity, SensorEntity): # type: ignore
 
     _attr_device_class = DEVICE_CLASS # type: ignore
 
+    # Disabled by default
+    _attr_entity_registry_enabled_default = False
+
     def __init__(self, coordinator: OcadoUpdateCoordinator, day: str, context: Any = None,) -> None:
         """Initialise the sensor."""
         super().__init__(coordinator, context=context) # type: ignore
