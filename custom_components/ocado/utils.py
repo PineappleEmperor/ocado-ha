@@ -190,60 +190,61 @@ def email_triage(self) -> tuple[list[Any], OcadoEmails | None]:
             # This is done first, since if the order number exists already from a confirmation, we still want to add the receipt.
             if ocado_email.type == "receipt":
                 # We only care about the most recent receipt
+                # This is currently broken due to Ocado changes with the PDF no longer included in emails
                 if ocado_receipt is None:
                     ocado_receipt = OcadoReceipt(ocado_email.date, ocado_email.order_number)
-                    email_message = BytesParser(policy=policy.default).parsebytes(message_data) # type: ignore
-                    for part in email_message.iter_attachments():
-                        if part.get_content_type() == 'application/pdf':
-                            pdf_data = part.get_payload(decode=True)
-                            pdf_stream = io.BytesIO(pdf_data) # type: ignore
-                            receipt_list = []
-                            try:
-                                reader = PdfReader(pdf_stream)
-                                pages = reader.pages    
-                                for page in pages:
-                                    receipt_list += page.extract_text().split('\n')
-                            except:  # noqa: E722
-                                continue
-                            # Calculate the indices of the different lists
-                            fridge_index = HeaderIndex("Fridge", receipt_list)
-                            cupboard_index = HeaderIndex("Cupboard", receipt_list)
-                            end_index = FindEndIndex(receipt_list)
-                            # Set up the BBD lists
-                            fridge = BBDLists(fridge_index, None, None)
-                            cupboard = BBDLists(cupboard_index, None, None)
-                            # Set the end indices
-                            if fridge.index_start is not None:
-                                if cupboard.index_start is not None:
-                                    fridge.index_end = cupboard.index_start - 2        
-                                    cupboard.index_end = end_index
-                                else:
-                                    fridge.index_end = end_index
-                            # Now calculate the BBDs properly
-                            delivery_date_raw = re.search(REGEX_DATE_FULL, receipt_list[11])
-                            if delivery_date_raw is not None:
-                                delivery_date_raw = delivery_date_raw.group()
-                                _LOGGER.debug("delivery_date_raw found (in 11) as %s", delivery_date_raw)
-                            else:
-                                delivery_date_regex = r"Delivery date:\s(?:" + REGEX_DAY_FULL + r")\s" + REGEX_DATE_FULL
-                                delivery_date_raw = re.search(delivery_date_regex, "\n".join(receipt_list))
-                                if delivery_date_raw is not None:
-                                    delivery_date_raw = delivery_date_raw.group()
-                                    _LOGGER.debug("delivery_date_raw found (in 7) as %s", delivery_date_raw)
-                            if delivery_date_raw is None:
-                                raise Exception
-                            _LOGGER.debug("delivery_date_raw found as %s", delivery_date_raw)
-                            fridge.update_bbds(receipt_list)
-                            cupboard.update_bbds(receipt_list)
-                            # Now save the lists as new attributes
-                            for day in DAYS[:-1]:
-                                _LOGGER.debug("Attempting to get %s from fridge & cupboard", day)
-                                _LOGGER.debug("Fridge: %s", getattr(fridge, day))
-                                _LOGGER.debug("Cupboard: %s", getattr(cupboard, day))
-                                # I think the number of cupboard bbds will be small, so combining.
-                                day_list = getattr(fridge, day) + getattr(cupboard, day)
-                                setattr(ocado_receipt, day, day_list)
-                            setattr(ocado_receipt, "date_dict", fridge.date_dict)
+                    # email_message = BytesParser(policy=policy.default).parsebytes(message_data) # type: ignore
+                    # for part in email_message.iter_attachments():
+                    #     if part.get_content_type() == 'application/pdf':
+                    #         pdf_data = part.get_payload(decode=True)
+                    #         pdf_stream = io.BytesIO(pdf_data) # type: ignore
+                    #         receipt_list = []
+                    #         try:
+                    #             reader = PdfReader(pdf_stream)
+                    #             pages = reader.pages    
+                    #             for page in pages:
+                    #                 receipt_list += page.extract_text().split('\n')
+                    #         except:  # noqa: E722
+                    #             continue
+                    #         # Calculate the indices of the different lists
+                    #         fridge_index = HeaderIndex("Fridge", receipt_list)
+                    #         cupboard_index = HeaderIndex("Cupboard", receipt_list)
+                    #         end_index = FindEndIndex(receipt_list)
+                    #         # Set up the BBD lists
+                    #         fridge = BBDLists(fridge_index, None, None)
+                    #         cupboard = BBDLists(cupboard_index, None, None)
+                    #         # Set the end indices
+                    #         if fridge.index_start is not None:
+                    #             if cupboard.index_start is not None:
+                    #                 fridge.index_end = cupboard.index_start - 2        
+                    #                 cupboard.index_end = end_index
+                    #             else:
+                    #                 fridge.index_end = end_index
+                    #         # Now calculate the BBDs properly
+                    #         delivery_date_raw = re.search(REGEX_DATE_FULL, receipt_list[11])
+                    #         if delivery_date_raw is not None:
+                    #             delivery_date_raw = delivery_date_raw.group()
+                    #             _LOGGER.debug("delivery_date_raw found (in 11) as %s", delivery_date_raw)
+                    #         else:
+                    #             delivery_date_regex = r"Delivery date:\s(?:" + REGEX_DAY_FULL + r")\s" + REGEX_DATE_FULL
+                    #             delivery_date_raw = re.search(delivery_date_regex, "\n".join(receipt_list))
+                    #             if delivery_date_raw is not None:
+                    #                 delivery_date_raw = delivery_date_raw.group()
+                    #                 _LOGGER.debug("delivery_date_raw found (in 7) as %s", delivery_date_raw)
+                    #         if delivery_date_raw is None:
+                    #             raise Exception
+                    #         _LOGGER.debug("delivery_date_raw found as %s", delivery_date_raw)
+                    #         fridge.update_bbds(receipt_list)
+                    #         cupboard.update_bbds(receipt_list)
+                    #         # Now save the lists as new attributes
+                    #         for day in DAYS[:-1]:
+                    #             _LOGGER.debug("Attempting to get %s from fridge & cupboard", day)
+                    #             _LOGGER.debug("Fridge: %s", getattr(fridge, day))
+                    #             _LOGGER.debug("Cupboard: %s", getattr(cupboard, day))
+                    #             # I think the number of cupboard bbds will be small, so combining.
+                    #             day_list = getattr(fridge, day) + getattr(cupboard, day)
+                    #             setattr(ocado_receipt, day, day_list)
+                    #         setattr(ocado_receipt, "date_dict", fridge.date_dict)
             elif ocado_email.type == "confirmation":
                 # Make sure we're not adding an older version of an order we already have
                 if ocado_email.order_number not in ocado_confirmed_orders:
