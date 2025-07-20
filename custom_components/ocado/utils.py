@@ -17,6 +17,7 @@ from .const import(
     NEW_OCADO_ADDRESS,
     OCADO_CUTOFF_SUBJECT,
     OCADO_SMARTPASS_SUBJECT,
+    OCADO_RENEWAL_SUBJECT,
     OCADO_SUBJECT_DICT,
     REGEX_DATE,
     # REGEX_DATE_FULL,
@@ -141,8 +142,8 @@ def get_order_number(message: str) -> str:
     raw = re.search(r"(?:Order\sref(?:\.|erence):\s)?(?:Order\sis\s)?(?P<order_number>\d{10,14})",message)
     if raw:
         return raw.group('order_number')
-    _LOGGER.error("No order number retrieved from message %s.", message[:20])
-    raise ValueError("No order number retrieved from message %s.", message[:20])
+    _LOGGER.error("No order number retrieved from message %s.", message[:50])
+    raise ValueError("No order number retrieved from message %s.", message[:50])
 
 
 def capitalise(text: str) -> str:
@@ -159,7 +160,7 @@ def email_triage(self) -> tuple[list[Any], OcadoEmails | None]:
     server = imap(host = self.imap_host, port = self.imap_port, timeout= 30)
     server.login(self.email_address, self.password)
     server.select(self.imap_folder, readonly=True)
-    pattern = fr'SINCE "{(today - timedelta(days=self.imap_days)).strftime("%d-%b-%Y")}" (OR (FROM "{OCADO_ADDRESS}") (FROM "{NEW_OCADO_ADDRESS}")) NOT SUBJECT "{OCADO_CUTOFF_SUBJECT}" NOT SUBJECT "{OCADO_SMARTPASS_SUBJECT}"'
+    pattern = fr'SINCE "{(today - timedelta(days=self.imap_days)).strftime("%d-%b-%Y")}" (OR (FROM "{OCADO_ADDRESS}") (FROM "{NEW_OCADO_ADDRESS}")) NOT SUBJECT "{OCADO_CUTOFF_SUBJECT}" NOT SUBJECT "{OCADO_SMARTPASS_SUBJECT}" NOT SUBJECT "{OCADO_RENEWAL_SUBJECT}"'
     result, message_ids = server.search(None, pattern)
     if result != "OK":
         _LOGGER.error("Could not connect to inbox.")

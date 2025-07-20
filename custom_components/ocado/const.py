@@ -14,6 +14,7 @@ OCADO_NEW_TOTAL_SUBJECT =       "What you returned, and your new total"
 OCADO_RECEIPT_SUBJECT =         "Your receipt for today's Ocado delivery"
 OCADO_NEW_NEW_TOTAL_SUBJECT =   "Your receipt and updates for today’s delivery"
 OCADO_SMARTPASS_SUBJECT =       "Payment successful: Smart Pass membership"
+OCADO_RENEWAL_SUBJECT =         "Your Smart Pass will be renewed"
 OCADO_SUBJECT_DICT = {
     OCADO_CANCELLATION_SUBJECT: "cancellation",
     OCADO_CONFIRMATION_SUBJECT: "confirmation",
