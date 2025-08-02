@@ -15,9 +15,11 @@ OCADO_RECEIPT_SUBJECT =         "Your receipt for today's Ocado delivery"
 OCADO_NEW_NEW_TOTAL_SUBJECT =   "Your receipt and updates for today’s delivery"
 OCADO_SMARTPASS_SUBJECT =       "Payment successful: Smart Pass membership"
 OCADO_RENEWAL_SUBJECT =         "Your Smart Pass will be renewed"
+OCADO_UPDATE_SUBJECT =          "Confirmation of your order changes"
 OCADO_SUBJECT_DICT = {
     OCADO_CANCELLATION_SUBJECT: "cancellation",
     OCADO_CONFIRMATION_SUBJECT: "confirmation",
+    OCADO_UPDATE_SUBJECT:       "update",
     OCADO_NEW_TOTAL_SUBJECT:    "new_total",
     OCADO_RECEIPT_SUBJECT:      "receipt",
     OCADO_NEW_NEW_TOTAL_SUBJECT:"new_total"
@@ -55,8 +57,8 @@ REGEX_MONTH = r"1[0-2]|0?[1-9]"
 REGEX_YEAR = r"(?:19|20)\d{2}"
 # If this eventually fails due to other formats being used, python-dateutil should be used
 REGEX_DATE_FULL = r"((?:" + REGEX_DATE + r")\/(?:" + REGEX_MONTH + r")\/(?:" + REGEX_YEAR + r"))"
-REGEX_TIME = r"([01][0-9]|2[0-3]):([0-5][0-9])([AaPp][Mm])?"
-REGEX_NOT_ISO_TIME = r"([0-9]|2[0-3]):([0-5][0-9])([AaPp][Mm])?"
+REGEX_TIME = r"([01][0-9]|2[0-3]):([0-5][0-9])\s?([AaPp][Mm])?"
+REGEX_NOT_ISO_TIME = r"([0-9]|2[0-3])(?::|.)([0-5][0-9])\s?([AaPp][Mm])?"
 REGEX_ORDINALS = r"st|nd|rd|th"
 
 REGEX_AMOUNT = r"(?:\d+x)?\d+k?(?:g|l|ml)"

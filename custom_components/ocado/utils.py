@@ -122,16 +122,19 @@ def get_edit_datetime(message: str) -> datetime:
     """Parse the edit deadline datetime."""
     pattern = fr"(?:You\scan\sedit\sthis\sorder\suntil:?\s)(?P<time>{REGEX_TIME})(?:\son\s)(?P<day>{REGEX_DATE})(?:{REGEX_ORDINALS})\s(?P<month>{REGEX_MONTH_FULL})\s(?P<year>{REGEX_YEAR})"
     raw = re.search(pattern, message)
+    _LOGGER.debug("Trying to get edit datetime")
     if raw:
+        _LOGGER.debug("First attempt found datetime")
         edit_datetime_raw = raw.group('year') + '-' + raw.group('month') + '-' + raw.group('day') + ' ' + raw.group('time')
         return datetime.strptime(edit_datetime_raw,'%Y-%B-%d %H:%M')
     else:
-        pattern = fr"(?:You\scan\sedit\sthis\sorder\suntil:?\s)(?P<time>{REGEX_NOT_ISO_TIME})(?:,\s)(?P<day>{REGEX_DATE})\s(?P<month>{REGEX_MONTH_FULL})\s(?P<year>{REGEX_YEAR})"
-        raw = re.search(pattern, message, re.MULTILINE)
+        _LOGGER.debug("Trying backup pattern")
+        pattern = fr"(?:You\scan\sedit\sthis\sorder\suntil:?\s)(?P<time>{REGEX_NOT_ISO_TIME})(?:\son\s|,\s)?(?P<day>{REGEX_DATE})(?:{REGEX_ORDINALS})?\s?(?P<month>{REGEX_MONTH_FULL})\s(?P<year>{REGEX_YEAR})"
+        raw = re.search(pattern, message, re.MULTILINE)        
         if raw:
-            edit_datetime_raw = raw.group('year') + '-' + raw.group('month') + '-' + raw.group('day') + ' 0' + raw.group('time')
+            _LOGGER.debug("Second attempt found datetime")
+            edit_datetime_raw = raw.group('year') + '-' + raw.group('month') + '-' + raw.group('day') + ' 0' + raw.group('time').replace(" ","").replace(".",":")
             edit_datetime_raw = re.sub(r"pm",r"PM",re.sub(r"am",r"AM",edit_datetime_raw))
-            _LOGGER.debug(edit_datetime_raw)
             return datetime.strptime(edit_datetime_raw,'%Y-%B-%d %I:%M%p')
     _LOGGER.error("No edit date found in message.")
     raise ValueError("No edit date found in message.")
@@ -177,7 +180,12 @@ def email_triage(self) -> tuple[list[Any], OcadoEmails | None]:
             server.close()
             server.logout()
             return message_ids, None
+    total = len(message_ids[0].split())
+    _LOGGER.debug("Beginning triaging of %s emails retrieved.", str(total))
+    i=0
     for message_id in reversed(message_ids[0].split()):
+        i+=1
+        _LOGGER.debug("Starting on message %s/%s", str(i), str(total))
         result, message_data = server.fetch(message_id,"(RFC822)")
         if message_data is None:
             continue
@@ -185,6 +193,7 @@ def email_triage(self) -> tuple[list[Any], OcadoEmails | None]:
         ocado_email = _parse_email(message_id, message_data) # type: ignore
         # If the type of email is a cancellation, add the order number to check for later
         if ocado_email.type == "cancellation":
+            _LOGGER.debug("Cancellation email found and added to cancelled orders.")
             ocado_cancelled.append(ocado_email.order_number)
         # If the order number isn't in the list of cancelled order numbers
         if ocado_email.order_number not in ocado_cancelled:
@@ -193,6 +202,7 @@ def email_triage(self) -> tuple[list[Any], OcadoEmails | None]:
                 # We only care about the most recent receipt
                 # This is currently broken due to Ocado changes with the PDF no longer included in emails
                 if ocado_receipt is None:
+                    _LOGGER.debug("Ocado order (%s) added to receipts.", ocado_email.order_number)
                     ocado_receipt = OcadoReceipt(ocado_email.date, ocado_email.order_number)
                     # email_message = BytesParser(policy=policy.default).parsebytes(message_data) # type: ignore
                     # for part in email_message.iter_attachments():
@@ -246,20 +256,22 @@ def email_triage(self) -> tuple[list[Any], OcadoEmails | None]:
                     #             day_list = getattr(fridge, day) + getattr(cupboard, day)
                     #             setattr(ocado_receipt, day, day_list)
                     #         setattr(ocado_receipt, "date_dict", fridge.date_dict)
-            elif ocado_email.type == "confirmation":
+            elif ocado_email.type == "confirmation" or ocado_email.type == "update":
                 # Make sure we're not adding an older version of an order we already have
+                _LOGGER.debug("Confirmed order is not in the list of confirmed orders? %s", ocado_email.order_number not in ocado_confirmed_orders)
                 if ocado_email.order_number not in ocado_confirmed_orders:
                     ocado_confirmed_orders.append(ocado_email.order_number)
                     ocado_confirmations.append(ocado_email)
+                    _LOGGER.debug("Ocado order (%s) added to confirmations.", ocado_email.order_number)
             elif ocado_email.type == "new_total":
                 # We only care about the most recent new total
                 if ocado_total is None:
                     ocado_confirmed_orders.append(ocado_email.order_number)
                     ocado_total = ocado_email
-
-
+                    _LOGGER.debug("Ocado order (%s) added to totals.", ocado_email.order_number)
     server.close()
     server.logout()
+    _LOGGER.debug("Finished with IMAP and closed the connection")
     # It's possible the total order number is repeated, so remove it
     ocado_orders = list(set(ocado_confirmed_orders))
     triaged_emails = OcadoEmails(
