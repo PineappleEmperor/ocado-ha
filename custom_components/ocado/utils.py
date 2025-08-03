@@ -19,13 +19,14 @@ from .const import(
     OCADO_SMARTPASS_SUBJECT,
     OCADO_RENEWAL_SUBJECT,
     OCADO_SUBJECT_DICT,
+    REGEX_EDIT_UNTIL,
     REGEX_DATE,
     # REGEX_DATE_FULL,
     REGEX_DAY_FULL,
     REGEX_MONTH_FULL,
     REGEX_YEAR,
-    REGEX_TIME,
-    REGEX_NOT_ISO_TIME,
+    REGEX_ISO_TIME,
+    REGEX_APM_TIME,
     REGEX_ORDINALS,
     STRING_NO_BBD,
     REGEX_END_INDEX,
@@ -77,7 +78,7 @@ def get_estimated_total(message: str) -> str:
 def get_delivery_datetimes(message: str | None) -> tuple[datetime, datetime] | tuple[None, None]:
     """Parse and return the delivery datetime."""
     if message is None:
-        return None, None    
+        return None, None
     pattern = fr"(?:Delivery\sdate:\s)(?P<day>{REGEX_DATE})\s(?P<month>{REGEX_MONTH_FULL})\s(?P<year>{REGEX_YEAR})"
     raw = re.search(pattern, message, re.MULTILINE)
     if raw:
@@ -103,24 +104,36 @@ def get_delivery_datetimes(message: str | None) -> tuple[datetime, datetime] | t
         else:
             _LOGGER.error("Delivery date not found when retrieving delivery datetime from message.")
             raise ValueError("Delivery date not found when retrieving delivery datetime from message.")
-    pattern = fr"(?:Delivery\stime:)(?:\sBetween)?(?:\s{{1,20}})(?P<start>{REGEX_TIME})\sand\s(?P<end>{REGEX_TIME})"
+    pattern = fr"(?:Delivery\stime:)(?:\sBetween)?(?:\s{{1,20}})(?P<start>{REGEX_ISO_TIME})\sand\s(?P<end>{REGEX_ISO_TIME})"
     delivery_time_raw = re.search(pattern, message, re.MULTILINE)    
     if delivery_time_raw:
-        start_time = re.sub(r"pm",r"PM",re.sub(r"am",r"AM",delivery_time_raw.group('start')))
-        end_time = re.sub(r"pm",r"PM",re.sub(r"am",r"AM",delivery_time_raw.group('end')))
-    else:        
-        _LOGGER.error("Time not found when retrieving delivery datetime from message.")
-        raise ValueError("Time not found when retrieving delivery datetime from message.")
-    delivery_datetime_raw = year + '-' + month + '-' + day + ' ' + start_time
-    delivery_datetime = datetime.strptime(delivery_datetime_raw,'%Y-%B-%d %I:%M%p')
-    delivery_window_end_raw = year + '-' + month + '-' + day + ' ' + end_time
-    delivery_window_end = datetime.strptime(delivery_window_end_raw,'%Y-%B-%d %I:%M%p')
+        _LOGGER.debug("ISO time found")
+        start_time = delivery_time_raw.group('start')
+        end_time = delivery_time_raw.group('end')
+        delivery_datetime_raw = year + '-' + month + '-' + day + ' ' + start_time
+        delivery_datetime = datetime.strptime(delivery_datetime_raw,'%Y-%B-%d %H:%M')
+        delivery_window_end_raw = year + '-' + month + '-' + day + ' ' + end_time
+        delivery_window_end = datetime.strptime(delivery_window_end_raw,'%Y-%B-%d %H:%M')
+    else:
+        pattern = fr"(?:Delivery\stime:)(?:\sBetween)?(?:\s{{1,20}})(?P<start>{REGEX_APM_TIME})\sand\s(?P<end>{REGEX_APM_TIME})"
+        delivery_time_raw = re.search(pattern, message, re.MULTILINE)
+        if delivery_time_raw:
+            _LOGGER.debug("ISO time found")
+            start_time = re.sub(r"pm",r"PM",re.sub(r"am",r"AM",delivery_time_raw.group('start')))
+            end_time = re.sub(r"pm",r"PM",re.sub(r"am",r"AM",delivery_time_raw.group('end')))
+            delivery_datetime_raw = year + '-' + month + '-' + day + ' ' + start_time
+            delivery_datetime = datetime.strptime(delivery_datetime_raw,'%Y-%B-%d %I:%M%p')
+            delivery_window_end_raw = year + '-' + month + '-' + day + ' ' + end_time
+            delivery_window_end = datetime.strptime(delivery_window_end_raw,'%Y-%B-%d %I:%M%p')
+        else:
+            _LOGGER.error("Time not found when retrieving delivery datetime from message.")
+            raise ValueError("Time not found when retrieving delivery datetime from message.")
     return delivery_datetime, delivery_window_end
 
 
 def get_edit_datetime(message: str) -> datetime:
     """Parse the edit deadline datetime."""
-    pattern = fr"(?:You\scan\sedit\sthis\sorder\suntil:?\s)(?P<time>{REGEX_TIME})(?:\son\s)(?P<day>{REGEX_DATE})(?:{REGEX_ORDINALS})\s(?P<month>{REGEX_MONTH_FULL})\s(?P<year>{REGEX_YEAR})"
+    pattern = fr"{REGEX_EDIT_UNTIL}(?P<time>{REGEX_ISO_TIME})(?:\son\s)(?P<day>{REGEX_DATE})(?:{REGEX_ORDINALS})\s(?P<month>{REGEX_MONTH_FULL})\s(?P<year>{REGEX_YEAR})"
     raw = re.search(pattern, message)
     _LOGGER.debug("Trying to get edit datetime")
     if raw:
@@ -128,8 +141,8 @@ def get_edit_datetime(message: str) -> datetime:
         edit_datetime_raw = raw.group('year') + '-' + raw.group('month') + '-' + raw.group('day') + ' ' + raw.group('time')
         return datetime.strptime(edit_datetime_raw,'%Y-%B-%d %H:%M')
     else:
-        _LOGGER.debug("Trying backup pattern")
-        pattern = fr"(?:You\scan\sedit\sthis\sorder\suntil:?\s)(?P<time>{REGEX_NOT_ISO_TIME})(?:\son\s|,\s)?(?P<day>{REGEX_DATE})(?:{REGEX_ORDINALS})?\s?(?P<month>{REGEX_MONTH_FULL})\s(?P<year>{REGEX_YEAR})"
+        _LOGGER.debug("Trying backup pattern with non ISO time")
+        pattern = fr"{REGEX_EDIT_UNTIL}(?P<time>{REGEX_APM_TIME})(?:\son\s|,\s)?(?P<day>{REGEX_DATE})(?:{REGEX_ORDINALS})?\s?(?P<month>{REGEX_MONTH_FULL})\s(?P<year>{REGEX_YEAR})"
         raw = re.search(pattern, message, re.MULTILINE)        
         if raw:
             _LOGGER.debug("Second attempt found datetime")
