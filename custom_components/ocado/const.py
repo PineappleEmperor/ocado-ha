@@ -48,6 +48,8 @@ EMAIL_ATTR_DATE = 'date'
 MIN_IMAP_DAYS = 7
 MIN_SCAN_INTERVAL = 60
 
+REGEX_EDIT_UNTIL = r"(?:You\scan\sedit\sthis\sorder\suntil:?\s)"
+
 REGEX_DATE = r"3[01]|[12][0-9]|0?[1-9]"
 REGEX_DAY_FULL = r"Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday"
 REGEX_DAY_SHORT = r"Mon|Tue|Wed|Thu|Fri|Sat|Sun"
@@ -57,8 +59,8 @@ REGEX_MONTH = r"1[0-2]|0?[1-9]"
 REGEX_YEAR = r"(?:19|20)\d{2}"
 # If this eventually fails due to other formats being used, python-dateutil should be used
 REGEX_DATE_FULL = r"((?:" + REGEX_DATE + r")\/(?:" + REGEX_MONTH + r")\/(?:" + REGEX_YEAR + r"))"
-REGEX_TIME = r"([01][0-9]|2[0-3]):([0-5][0-9])\s?([AaPp][Mm])?"
-REGEX_NOT_ISO_TIME = r"([0-9]|2[0-3])(?::|.)([0-5][0-9])\s?([AaPp][Mm])?"
+REGEX_ISO_TIME = r"([01][0-9]|2[0-3]):([0-5][0-9])"
+REGEX_APM_TIME = r"(1[0-2]|0?[1-9])(?::|.)([0-5][0-9])\s?([AaPp][Mm])?"
 REGEX_ORDINALS = r"st|nd|rd|th"
 
 REGEX_AMOUNT = r"(?:\d+x)?\d+k?(?:g|l|ml)"
