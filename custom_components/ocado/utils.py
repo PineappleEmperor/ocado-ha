@@ -146,7 +146,7 @@ def get_edit_datetime(message: str) -> datetime:
         raw = re.search(pattern, message, re.MULTILINE)        
         if raw:
             _LOGGER.debug("Second attempt found datetime")
-            edit_datetime_raw = raw.group('year') + '-' + raw.group('month') + '-' + raw.group('day') + ' 0' + raw.group('time').replace(" ","").replace(".",":")
+            edit_datetime_raw = raw.group('year') + '-' + raw.group('month') + '-' + raw.group('day') + ' ' + raw.group('time').replace(" ","").replace(".",":").zfill(7)
             edit_datetime_raw = re.sub(r"pm",r"PM",re.sub(r"am",r"AM",edit_datetime_raw))
             return datetime.strptime(edit_datetime_raw,'%Y-%B-%d %I:%M%p')
     _LOGGER.error("No edit date found in message.")
