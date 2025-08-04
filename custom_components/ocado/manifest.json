@@ -16,5 +16,5 @@
       "BeautifulSoup4>=4.10.0"
     ],
     "single_config_entry": true,
-    "version": "1.1.4"
+    "version": "1.1.5"
   }
