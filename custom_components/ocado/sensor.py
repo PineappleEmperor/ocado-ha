@@ -255,15 +255,20 @@ class OcadoEdit(CoordinatorEntity, SensorEntity): # type: ignore
         now = datetime.now()        
         # Switch between orders depending on edit deadlines or output None
         order = ocado_data.get("next")
-        if (order is None) or (order.edit_datetime < now):
+        if (order is None):
             order = ocado_data.get("upcoming")
             if order is not None:
                 if order.edit_datetime < now:
                     order = None
-        
         if order is not None:
-            result = set_edit_order(self, order, now) # type: ignore
-            _LOGGER.debug("Set_order returned %s", result)
+            if (order.edit_datetime < now):
+                order = ocado_data.get("upcoming")
+                if order is not None:
+                    if order.edit_datetime < now:
+                        order = None
+            else:
+                result = set_edit_order(self, order, now) # type: ignore
+                _LOGGER.debug("Set_order returned %s", result)
         else:
             self._attr_state = None
             self._attr_icon = "mdi:help-circle"
