@@ -153,8 +153,21 @@ class OcadoDelivery(CoordinatorEntity, SensorEntity): # type: ignore
                 return
         
         now = datetime.now()
-        order = ocado_data.get("next") or ocado_data.get("upcoming")
-        
+        # order = ocado_data.get("next") or ocado_data.get("upcoming")
+        # Switch between orders depending on delivery datetime or output None
+        order = ocado_data.get("next")
+        if (order is None):
+            order = ocado_data.get("upcoming")
+            if order is not None:
+                if order.delivery_window_end < now:
+                    order = None
+        if order is not None:
+            # If the delivery datetime is in the past check upcoming
+            if (order.delivery_window_end < now):
+                order = ocado_data.get("upcoming")
+                if order is not None:
+                    if (order.delivery_window_end < now):
+                        order = None
         if order is not None:
             result = set_order(self, order, now) # type: ignore
             _LOGGER.debug("Set_order returned %s", result)
@@ -260,16 +273,37 @@ class OcadoEdit(CoordinatorEntity, SensorEntity): # type: ignore
             if order is not None:
                 if order.edit_datetime < now:
                     order = None
+            else:
+                order = None
         if order is not None:
+            # If the edit datetime is in the past check upcoming
             if (order.edit_datetime < now):
                 order = ocado_data.get("upcoming")
                 if order is not None:
+                    # If the edit datetime is in the past return empty
                     if order.edit_datetime < now:
-                        order = None
+                        self._attr_state = None
+                        self._attr_icon = "mdi:help-circle"
+                        self._hass_custom_attributes = {
+                            "updated":      datetime.now(),
+                            "order_number": None,
+                        }
+                    else:
+                        result = set_edit_order(self, order, now) # type: ignore
+                        _LOGGER.debug("Set_order returned %s", result)                        
+                else:
+                    self._attr_state = None
+                    self._attr_icon = "mdi:help-circle"
+                    self._hass_custom_attributes = {
+                        "updated":      datetime.now(),
+                        "order_number": None,
+                    }
             else:
+                # Set the edit order with the selected order
                 result = set_edit_order(self, order, now) # type: ignore
                 _LOGGER.debug("Set_order returned %s", result)
         else:
+            # If no orders are returned, return an empty order
             self._attr_state = None
             self._attr_icon = "mdi:help-circle"
             self._hass_custom_attributes = {
@@ -289,7 +323,7 @@ class OcadoEdit(CoordinatorEntity, SensorEntity): # type: ignore
             if detect_attr_changes(new, old):
                 _LOGGER.debug("Updating due to new attributes")
                 self.async_write_ha_state()
-            # Now check if the edit deadline has passed
+            # Now check if the edit deadline has passed -> what if there is no next? Display 
             elif "next" in current.attributes:
                 if hasattr(current.attributes.get("next"),"edit_deadline"):
                     if current.attributes.get("next").edit_deadline < now: # type: ignore
