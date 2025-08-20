@@ -167,6 +167,13 @@ def capitalise(text: str) -> str:
     return text[0].upper() + text[1:]
 
 
+def has_delivery_window_end(order):
+    return order is not None and getattr(order, "delivery_window_end", None) is not None
+
+
+def has_edit_datetime(order):
+    return order is not None and getattr(order, "edit_datetime", None) is not None
+
 
 # reversed so that we start with the newest message and break on it
 def email_triage(self) -> tuple[list[Any], OcadoEmails | None]:

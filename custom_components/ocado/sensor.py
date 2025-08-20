@@ -38,6 +38,8 @@ from .utils import (
     set_bbds,
     set_total,
     detect_attr_changes,
+    has_delivery_window_end,
+    has_edit_datetime,
 )
 
 PLATFORMS = [Platform.SENSOR]
@@ -157,17 +159,22 @@ class OcadoDelivery(CoordinatorEntity, SensorEntity): # type: ignore
         # Switch between orders depending on delivery datetime or output None
         order = ocado_data.get("next")
         if (order is None):
+            # I don't think this will ever fire
             order = ocado_data.get("upcoming")
-            if order is not None:
-                if order.delivery_window_end < now:
+            if has_delivery_window_end(order):
+                if order.delivery_window_end < now: # type: ignore
                     order = None
-        if order is not None:
+            else:
+                order = None
+        if has_delivery_window_end(order):
             # If the delivery datetime is in the past check upcoming
-            if (order.delivery_window_end < now):
+            if (order.delivery_window_end < now): # type: ignore
                 order = ocado_data.get("upcoming")
-                if order is not None:
-                    if (order.delivery_window_end < now):
+                if has_delivery_window_end(order):
+                    if (order.delivery_window_end < now): # type: ignore
                         order = None
+                else:
+                    order = None
         if order is not None:
             result = set_order(self, order, now) # type: ignore
             _LOGGER.debug("Set_order returned %s", result)
@@ -270,18 +277,18 @@ class OcadoEdit(CoordinatorEntity, SensorEntity): # type: ignore
         order = ocado_data.get("next")
         if (order is None):
             order = ocado_data.get("upcoming")
-            if order is not None:
-                if order.edit_datetime < now:
+            if has_edit_datetime(order):
+                if order.edit_datetime < now: # type: ignore
                     order = None
             else:
                 order = None
-        if order is not None:
+        if has_edit_datetime(order):
             # If the edit datetime is in the past check upcoming
-            if (order.edit_datetime < now):
+            if (order.edit_datetime < now): # type: ignore
                 order = ocado_data.get("upcoming")
-                if order is not None:
+                if has_edit_datetime(order):
                     # If the edit datetime is in the past return empty
-                    if order.edit_datetime < now:
+                    if order.edit_datetime < now: # type: ignore
                         self._attr_state = None
                         self._attr_icon = "mdi:help-circle"
                         self._hass_custom_attributes = {
