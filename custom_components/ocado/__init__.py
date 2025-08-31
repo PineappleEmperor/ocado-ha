@@ -4,7 +4,8 @@ import logging
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, ServiceCall
+from homeassistant.components.file_upload import async_get_uploaded_file
 
 from homeassistant.exceptions import ConfigEntryNotReady
 # from homeassistant.helpers.device_registry import DeviceEntry
@@ -15,6 +16,7 @@ from homeassistant.helpers import config_validation as cv, device_registry as dr
 
 from .const import DOMAIN
 from .coordinator import OcadoUpdateCoordinator
+# from . import services
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -36,33 +38,6 @@ async def async_setup(hass: HomeAssistant, config_entry: dict) -> bool:
         return False
     _LOGGER.info("[%s] async_setup completed without errors.", DOMAIN)
     return True
-
-        # async def handle_manual_refresh(call):
-        #     """Refresh all Ocado sensors for a given config entry."""
-        #     _LOGGER.debug("manual_refresh service called with data: %s", call.data)
-        #     entry_id = call.data.get("entry_id")
-
-        #     if not entry_id:
-        #         _LOGGER.error("[Ocado-ha] No entry_id was passed to ocado-ha.manual_refresh service.")
-        #         return
-
-        #     if entry_id not in hass.data[DOMAIN]:
-        #         _LOGGER.error("[Ocado-ha] No config entry found for entry_id: %s", entry_id)
-        #         return
-
-        #     coordinator = hass.data[DOMAIN][entry_id].get("coordinator")
-        #     if not coordinator:
-        #         _LOGGER.error("[Ocado-ha] Coordinator is missing for entry_id: %s",entry_id)
-        #         return
-
-        #     _LOGGER.debug("[Ocado-ha] Requesting a manual refresh via coordinator")
-        #     await coordinator.async_request_refresh()
-        #     _LOGGER.debug("[Ocado-ha] Manual refresh completed")
-
-        # # Register a service named `ocado_ha.manual_refresh`
-        # _LOGGER.debug("[Ocado-ha] Registering manual_refresh service")
-        # hass.services.async_register(DOMAIN, "manual_refresh", handle_manual_refresh)
-        # _LOGGER.debug("[Ocado-ha] manual_refresh service registered successfully")
 
 
 async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> bool:
@@ -106,8 +81,28 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> b
         _LOGGER.debug("Cleaning up old devices.")
         await cleanup_old_device(hass)
         _LOGGER.debug("Completed cleaning up old devices.")
-        # config_entry.runtime_data = coordinator
-        # config_entry.async_on_unload(config_entry.add_update_listener(async_update_entry))
+
+        async def handle_process_file(call: ServiceCall):
+            file_info = config_entry.options.get("file_info") or config_entry.data.get("file_info")
+            if not file_info:
+                _LOGGER.warning("No file uploaded yet for this config entry.")
+            else:
+                uploaded = await async_get_uploaded_file(hass, file_info["file_id"])
+                contents = uploaded.read().decode("utf-8")
+
+                # Example: update coordinator or do something with file contents
+                _LOGGER.debug("File uploaded with %d characters", len(contents))
+                coordinator.last_uploaded_file = contents  # store for later use
+                await coordinator.async_request_refresh()    # trigger entity refresh
+                _LOGGER.info("Processed uploaded file (%d chars) and refreshed coordinator", len(contents)
+            )
+
+        hass.services.async_register(
+            DOMAIN,
+            "process_file",
+            handle_process_file,
+        )
+
         return True
     
     except UpdateFailed as error:
@@ -129,9 +124,9 @@ async def update_listener(hass: HomeAssistant, config_entry: ConfigEntry):
 async def async_unload_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> bool:
     """Unload a config entry."""
 
-    # # Unload services
-    # for service in hass.services.async_services_for_domain(DOMAIN):
-    #     hass.services.async_remove(DOMAIN, service)
+    # Unload services
+    for service in hass.services.async_services_for_domain(DOMAIN):
+        hass.services.async_remove(DOMAIN, service)
 
     # Unload platforms and return result
     if DOMAIN in hass.data and config_entry.entry_id in hass.data[DOMAIN]:
