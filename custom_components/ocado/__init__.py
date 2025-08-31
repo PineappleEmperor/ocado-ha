@@ -15,7 +15,7 @@ from homeassistant.helpers import config_validation as cv, device_registry as dr
 
 from .const import DOMAIN
 from .coordinator import OcadoUpdateCoordinator
-# from . import services
+from . import services
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -81,26 +81,7 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> b
         await cleanup_old_device(hass)
         _LOGGER.debug("Completed cleaning up old devices.")
 
-        async def handle_process_file(call: ServiceCall):
-            file_info = config_entry.options.get("file_info") or config_entry.data.get("file_info")
-            if not file_info:
-                _LOGGER.warning("No file uploaded yet for this config entry.")
-            else:
-                uploaded = await async_get_uploaded_file(hass, file_info["file_id"])
-                contents = uploaded.read().decode("utf-8")
-
-                # Example: update coordinator or do something with file contents
-                _LOGGER.debug("File uploaded with %d characters", len(contents))
-                coordinator.last_uploaded_file = contents  # store for later use
-                await coordinator.async_request_refresh()    # trigger entity refresh
-                _LOGGER.info("Processed uploaded file (%d chars) and refreshed coordinator", len(contents)
-            )
-
-        hass.services.async_register(
-            DOMAIN,
-            "process_file",
-            handle_process_file,
-        )
+        await services.async_register_services(hass, config_entry, DOMAIN)
 
         return True
     
