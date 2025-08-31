@@ -17,7 +17,8 @@ from .const import (
     CONF_IMAP_FOLDER,
     CONF_IMAP_DAYS,
     DEFAULT_SCAN_INTERVAL,
-    DEFAULT_IMAP_DAYS
+    DEFAULT_IMAP_DAYS,
+    OcadoReceipt
 )
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
@@ -53,7 +54,7 @@ class OcadoUpdateCoordinator(DataUpdateCoordinator):
         self.imap_days      = config_entry.options.get(CONF_IMAP_DAYS, DEFAULT_IMAP_DAYS)
         
         # Set variables from services
-        self.last_uploaded_file: str | None = None 
+        self.last_uploaded_file: OcadoReceipt | None = None 
 
         super().__init__(
             hass,
@@ -69,12 +70,6 @@ class OcadoUpdateCoordinator(DataUpdateCoordinator):
         """Fetch data from the IMAP server and filter the emails for Ocado ones."""
         _LOGGER.debug("Beginning coordinator update")
         try:
-            # Need to add a way to return old version by default
-            if self.last_uploaded_file:
-                # Example: parse/process the uploaded file                
-                receipt_list = self.last_uploaded_file
-            else:
-                receipt_list = []
             # Add a way to determine if a BBD is needed -> delivery within 7days?
             # Retrieve all the Ocado order confirmations from the last imap_days, will return None if there are no new emails
             message_ids, triaged_emails = email_triage(self)
@@ -91,11 +86,19 @@ class OcadoUpdateCoordinator(DataUpdateCoordinator):
                 next                = None
                 upcoming            = None
                 orders              = None
+            # Need to add a way to return old version by default
+            if self.last_uploaded_file:
+                # Example: parse/process the uploaded file                
+                receipt_bbds = self.last_uploaded_file
+            else:
+                receipt_bbds = None
             # If there has been a recent delivery, add it as recent.
             if triaged_emails.receipt is not None:
                 try:
                     # order           = receipt_parse(triaged_emails.receipt)
                     receipt         = triaged_emails.receipt
+                    if receipt_bbds:
+                        receipt.update_from(receipt_bbds)
                 except: # noqa: E722
                     receipt         = None
             else:

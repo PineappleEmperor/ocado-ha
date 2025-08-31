@@ -157,6 +157,16 @@ class OcadoReceipt:
         self.sat                    = sat
         self.sun                    = sun
         self.date_dict              = date_dict
+    def update_from(self, other: "OcadoReceipt") -> None:
+        """Update this receipt from another, only if order_number matches."""
+        if self.order_number != other.order_number:
+            raise ValueError(
+                f"Order numbers do not match: {self.order_number} != {other.order_number}"
+            )
+        for attr in ["mon", "tue", "wed", "thu", "fri", "sat", "sun", "date_dict"]:
+            value = getattr(other, attr)
+            if value not in (None, [], {}):  # only update if non-empty
+                setattr(self, attr, value)
     def toJSON(self):
         order = {}
         for k, v in vars(self).items():
