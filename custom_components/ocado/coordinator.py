@@ -46,11 +46,14 @@ class OcadoUpdateCoordinator(DataUpdateCoordinator):
         self.password       = config_entry.data[CONF_PASSWORD]
         self.imap_host      = config_entry.data[CONF_IMAP_SERVER]
         self.imap_port      = config_entry.data[CONF_IMAP_PORT]
-        self.imap_folder    = config_entry.data[CONF_IMAP_FOLDER]
-                
+        self.imap_folder    = config_entry.data[CONF_IMAP_FOLDER]        
+        
         # Set variables from options
         self.scan_interval  = config_entry.options.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)
         self.imap_days      = config_entry.options.get(CONF_IMAP_DAYS, DEFAULT_IMAP_DAYS)
+        
+        # Set variables from services
+        self.last_uploaded_file: str | None = None 
 
         super().__init__(
             hass,
@@ -65,13 +68,19 @@ class OcadoUpdateCoordinator(DataUpdateCoordinator):
     async def async_update_data(self) -> dict:
         """Fetch data from the IMAP server and filter the emails for Ocado ones."""
         _LOGGER.debug("Beginning coordinator update")
-        try:            
+        try:
+            # Need to add a way to return old version by default
+            if self.last_uploaded_file:
+                # Example: parse/process the uploaded file                
+                receipt_list = self.last_uploaded_file
+            else:
+                receipt_list = []
             # Add a way to determine if a BBD is needed -> delivery within 7days?
             # Retrieve all the Ocado order confirmations from the last imap_days, will return None if there are no new emails
             message_ids, triaged_emails = email_triage(self)
             if triaged_emails is None:
                 _LOGGER.debug("Returning old state data since no new message_ids")
-                return self.data
+                return self.data            
             orders                  = []
             for order in triaged_emails.confirmations:
                 order = order_parse(order)

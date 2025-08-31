@@ -238,6 +238,9 @@ def email_triage(self) -> tuple[list[Any], OcadoEmails | None]:
                     #         except:  # noqa: E722
                     #             continue
                     #         # Calculate the indices of the different lists
+                    
+                    
+                    
                     #         fridge_index = HeaderIndex("Fridge", receipt_list)
                     #         cupboard_index = HeaderIndex("Cupboard", receipt_list)
                     #         end_index = FindEndIndex(receipt_list)
