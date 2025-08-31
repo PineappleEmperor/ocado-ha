@@ -5,7 +5,6 @@ import logging
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant, ServiceCall
-from homeassistant.components.file_upload import async_get_uploaded_file
 
 from homeassistant.exceptions import ConfigEntryNotReady
 # from homeassistant.helpers.device_registry import DeviceEntry
