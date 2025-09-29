@@ -1,0 +1,33 @@
+name: Create Release ZIP
+
+on:
+  release:
+    types: [created, published]
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Create Release Asset
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Create ZIP file
+        run: |
+          cd custom_components/ocado_ha
+          zip -r ../../ocado_ha.zip .
+          cd ../..
+          ls -la ocado_ha.zip
+
+      - name: Upload Release Asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ github.event.release.upload_url }}
+          asset_path: ./ocado_ha.zip
+          asset_name: ocado_ha.zip
+          asset_content_type: application/zip
