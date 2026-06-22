@@ -1,32 +1,25 @@
-# from homeassistant.components.file_upload import async_get_uploaded_file
+"""Services for the Ocado integration."""
+from datetime import datetime
 from io import BytesIO
-from pypdf import PdfReader
 import logging
 import re
-from datetime import date, datetime, timedelta
-from .const import(
-    BBDLists,
-    DAYS,
-    OcadoReceipt,
-    REGEX_DATE_FULL,
-    REGEX_DAY_FULL,
-)
-from .utils import(
-    FindEndIndex,
-    HeaderIndex,
-)
+
+from pypdf import PdfReader
+
+from .const import DAYS, REGEX_DATE_FULL, REGEX_DAY_FULL, BBDLists, OcadoReceipt
+from .utils import FindEndIndex, HeaderIndex
 
 _LOGGER = logging.getLogger(__name__)
 
 
 async def async_register_services(hass, entry, domain):
+    """Register the Ocado integration services."""
     async def handle_process_file(call):
         # Retrieve the file ID from the service call
         file_id = call.data.get("file_id")
         if not file_id:
             _LOGGER.warning("No file ID provided in the service call.")
             return
-        
         # Access the uploaded file from hass.data
         uploaded = hass.data.get("file_upload", {}).get(file_id)
         if not uploaded:
@@ -76,7 +69,7 @@ async def async_register_services(hass, entry, domain):
             # Set the end indices
             if fridge.index_start is not None:
                 if cupboard.index_start is not None:
-                    fridge.index_end = cupboard.index_start - 2        
+                    fridge.index_end = cupboard.index_start - 2
                     cupboard.index_end = end_index
                 else:
                     fridge.index_end = end_index
@@ -92,7 +85,7 @@ async def async_register_services(hass, entry, domain):
                     delivery_date_raw = delivery_date_raw.group()
                     _LOGGER.debug("delivery_date_raw found (in 7) as %s", delivery_date_raw)
             if delivery_date_raw is None:
-                raise Exception
+                raise ValueError("Could not extract delivery date from receipt")  # noqa: TRY301
             _LOGGER.debug("delivery_date_raw found as %s", delivery_date_raw)
             fridge.update_bbds(receipt_list)
             cupboard.update_bbds(receipt_list)
@@ -105,7 +98,7 @@ async def async_register_services(hass, entry, domain):
                 day_list = getattr(fridge, day) + getattr(cupboard, day)
                 setattr(ocado_receipt, day, day_list)
             setattr(ocado_receipt, "date_dict", fridge.date_dict)
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             _LOGGER.warning("Failed to extract BBD details: %s", e)
             ocado_receipt = None
         coordinator.last_uploaded_data = ocado_receipt
