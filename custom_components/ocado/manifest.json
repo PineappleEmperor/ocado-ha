@@ -5,7 +5,7 @@
       "@PineappleEmperor"
     ],
     "config_flow": true,
-    "dependencies": [],
+    "dependencies": ["file_upload"],
     "documentation": "https://github.com/PineappleEmperor/ocado-ha/blob/main/README.md",
     "integration_type": "service",
     "iot_class": "cloud_polling",

@@ -14,7 +14,8 @@ This is an unofficial Ocado integration for Home Assistant. This integration cre
 
 I'd suggest creating a new email address and set up auto-forwarding on any emails you wish this integration, or any other IMAP integration to access.
 
-:warning: Please note this integration is in early development, there may be some rough edges and errors, so please submit any issues you come across!
+> [!NOTE]
+> **AI assistance:** I'm a programmer; this project is built with AI (Claude, via Claude Code) for implementation, code review, and QA — under human direction, guided by my [`ha-integration`](https://github.com/PineappleEmperor/pineapple-claude-hacs) skill. We challenge each other's choices: I review and push back on the AI's output, and it questions my decisions and flags trade-offs. Architecture and final review are mine; every change is human-reviewed before it merges.
 
 Installation
 ------------

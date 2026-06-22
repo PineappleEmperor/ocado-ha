@@ -4,18 +4,14 @@ import logging
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
-from homeassistant.core import HomeAssistant, ServiceCall
-
+from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryNotReady
-# from homeassistant.helpers.device_registry import DeviceEntry
+from homeassistant.helpers import config_validation as cv, device_registry as dr
 from homeassistant.helpers.update_coordinator import UpdateFailed
 
-from homeassistant.helpers import config_validation as cv, device_registry as dr
-# , device_registry as dr
-
+from . import services
 from .const import DOMAIN
 from .coordinator import OcadoUpdateCoordinator
-from . import services
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -32,8 +28,8 @@ async def async_setup(hass: HomeAssistant, config_entry: dict) -> bool:
     try:
         hass.data[DOMAIN] = {}
         _LOGGER.debug("hass.data[%s] initialized", DOMAIN)
-    except Exception as error:
-        _LOGGER.exception("Unexpected error in async_setup: %s", error)
+    except Exception:
+        _LOGGER.exception("Unexpected error in async_setup")
         return False
     _LOGGER.info("[%s] async_setup completed without errors.", DOMAIN)
     return True
@@ -58,7 +54,7 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> b
         if not coordinator.data:
             raise ConfigEntryNotReady
         _LOGGER.info(
-            f"Initial data fetched successfully for entry_id={config_entry.entry_id}"
+            "Initial data fetched successfully for entry_id=%s", config_entry.entry_id
         )
 
         # Store the coordinator
@@ -66,16 +62,16 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> b
         hass.data.setdefault(DOMAIN,{})[config_entry.entry_id] = {"coordinator": coordinator}
 
         _LOGGER.debug(
-            f"Coordinator stored in hass.data under entry_id={config_entry.entry_id}"
+            "Coordinator stored in hass.data under entry_id={%s}", config_entry.entry_id
         )
 
         # Forward the setup to all platforms
         if "platforms" not in hass.data[DOMAIN][config_entry.entry_id]:
-            _LOGGER.debug(f"Forwarding setup to platforms: {PLATFORMS}")
+            _LOGGER.debug("Forwarding setup to platforms: %s", PLATFORMS)
             await hass.config_entries.async_forward_entry_setups(config_entry, PLATFORMS)
             hass.data[DOMAIN][config_entry.entry_id]["platforms"] = PLATFORMS
         _LOGGER.info(
-            f"async_setup_entry finished for entry_id={config_entry.entry_id}"
+            "async_setup_entry finished for entry_id=%s", config_entry.entry_id
         )
         _LOGGER.debug("Cleaning up old devices.")
         await cleanup_old_device(hass)
@@ -83,11 +79,11 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> b
 
         await services.async_register_services(hass, config_entry, DOMAIN)
 
-        return True
-    
     except UpdateFailed as error:
         _LOGGER.error("Unable to fetch initial data: %s", error)
         raise ConfigEntryNotReady from error
+
+    return True
 
 
 async def update_listener(hass: HomeAssistant, config_entry: ConfigEntry):
@@ -127,12 +123,12 @@ async def async_unload_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> 
 async def async_update_entry(hass: HomeAssistant, config_entry: ConfigEntry):
     """Reload Ocado component when options changed."""
     await hass.config_entries.async_reload(config_entry.entry_id)
-    
+
 async def cleanup_old_device(hass: HomeAssistant) -> None:
     """Cleanup device without proper device identifier."""
     device_reg = dr.async_get(hass)
     _LOGGER.debug("Device reg is %s", device_reg)
-    device = device_reg.async_get_device(identifiers={(DOMAIN,)}) # type: ignore
+    device = device_reg.async_get_device(identifiers={(DOMAIN,)})  # type: ignore[arg-type]  # malformed 1-tuple identifier intentionally matches legacy device to clean up
     _LOGGER.debug("Device is %s", device)
     if device:
         _LOGGER.debug("Removing improper device %s", device.name)

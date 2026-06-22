@@ -2,127 +2,108 @@
 
 from datetime import datetime, timedelta, timezone
 import logging
-# import json
+from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import (
-    CONF_EMAIL,
-    CONF_PASSWORD,
-    CONF_SCAN_INTERVAL,
-)
-from .const import (
-    DOMAIN,
-    CONF_IMAP_SERVER,
-    CONF_IMAP_PORT,
-    CONF_IMAP_FOLDER,
-    CONF_IMAP_DAYS,
-    DEFAULT_SCAN_INTERVAL,
-    DEFAULT_IMAP_DAYS,
-    OcadoReceipt
-)
+from homeassistant.const import CONF_SCAN_INTERVAL
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
-from .utils import (
-    email_triage,
-    order_parse,
-    sort_orders,
-    # receipt_parse,
-    total_parse,
-)
+from .const import CONF_IMAP_DAYS, DEFAULT_IMAP_DAYS, DEFAULT_SCAN_INTERVAL, DOMAIN
+from .utils import email_triage, order_parse, sort_orders, total_parse, voucher_parse
 
 _LOGGER = logging.getLogger(__name__)
-# type OcadoConfigEntry = ConfigEntry(OcadoUpdateCoordinator)
 
 
-class OcadoUpdateCoordinator(DataUpdateCoordinator):
+class OcadoUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
     """Coordinator to manage all the data from Ocado emails."""
-    # data: list[dict[str, Any]]
 
     def __init__(self, hass: HomeAssistant, config_entry: ConfigEntry) -> None:
         """Initialize the data update coordinator."""
-        # Set variables from values entered in config flow setup
-        self._hass          = hass
-        self.email_address  = config_entry.data[CONF_EMAIL]
-        self.password       = config_entry.data[CONF_PASSWORD]
-        self.imap_host      = config_entry.data[CONF_IMAP_SERVER]
-        self.imap_port      = config_entry.data[CONF_IMAP_PORT]
-        self.imap_folder    = config_entry.data[CONF_IMAP_FOLDER]        
-        
+        # assert self._config_entry is not None
+
         # Set variables from options
-        self.scan_interval  = config_entry.options.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)
-        self.imap_days      = config_entry.options.get(CONF_IMAP_DAYS, DEFAULT_IMAP_DAYS)
-        
-        # Set variables from services
-        self.last_uploaded_file: OcadoReceipt | None = None 
+        self.scan_interval  : int  = config_entry.options.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)
+        self.imap_days      : int  = config_entry.options.get(CONF_IMAP_DAYS, DEFAULT_IMAP_DAYS)
 
         super().__init__(
             hass,
             _LOGGER,
-            name            = f"{DOMAIN}",
+            name            = DOMAIN,
             config_entry    = config_entry,
             update_method   = self.async_update_data,
             update_interval = timedelta(seconds=self.scan_interval),
             always_update   = True,
         )
 
-    async def async_update_data(self) -> dict:
+        # Set variables from services
+        # self.last_uploaded_file: OcadoReceipt | None = None
+
+    async def async_update_data(self) -> dict[str, Any]:
         """Fetch data from the IMAP server and filter the emails for Ocado ones."""
         _LOGGER.debug("Beginning coordinator update")
+
         try:
-            # Add a way to determine if a BBD is needed -> delivery within 7days?
             # Retrieve all the Ocado order confirmations from the last imap_days, will return None if there are no new emails
             message_ids, triaged_emails = email_triage(self)
             if triaged_emails is None:
-                _LOGGER.debug("Returning old state data since no new message_ids")
-                return self.data            
+                _LOGGER.debug("No new emails found, returning cached data")
+                return self.data
             orders                  = []
             for order in triaged_emails.confirmations:
                 order = order_parse(order)
                 orders.append(order)
             if len(orders) > 0:
-                next, upcoming      = sort_orders(orders)
+                next_order, upcoming_order = sort_orders(orders)
             else:
-                next                = None
-                upcoming            = None
+                next_order          = None
+                upcoming_order      = None
                 orders              = None
             # Need to add a way to return old version by default
-            if self.last_uploaded_file:
-                # Example: parse/process the uploaded file                
-                receipt_bbds = self.last_uploaded_file
-            else:
-                receipt_bbds = None
+            # if self.last_uploaded_file:
+            #     # Example: parse/process the uploaded file
+            #     receipt_bbds = self.last_uploaded_file
+            # else:
+            #     receipt_bbds = None
             # If there has been a recent delivery, add it as recent.
-            if triaged_emails.receipt is not None:
-                try:
-                    # order           = receipt_parse(triaged_emails.receipt)
-                    receipt         = triaged_emails.receipt
-                    if receipt_bbds:
-                        receipt.update_from(receipt_bbds)
-                except: # noqa: E722
-                    receipt         = None
-            else:
-                _LOGGER.info("No receipt email found.")
-                receipt             = None
+            # if triaged_emails.receipt is not None:
+            #     try:
+            #         # order           = receipt_parse(triaged_emails.receipt)
+            #         receipt         = triaged_emails.receipt
+            #         if receipt_bbds:
+            #             receipt.update_from(receipt_bbds)
+            #     except Exception:
+            #         receipt         = None
+            # else:
+            #     _LOGGER.info("No receipt email found.")
+            #     receipt             = None
             # If there has been a recent delivery, add the total.
             if triaged_emails.total is not None:
                 try:
                     order           = total_parse(triaged_emails.total)
                     total           = order
-                except: # noqa: E722
+                except Exception:  # noqa: BLE001
                     total = None
             else:
                 _LOGGER.info("No receipt email found.")
                 total               = None
-            payload_raw = {
+            if triaged_emails.voucher is not None:
+                try:
+                    voucher         = voucher_parse(triaged_emails.voucher)
+                except Exception:  # noqa: BLE001
+                    voucher         = None
+            else:
+                _LOGGER.info("No voucher email found.")
+                voucher             = None
+            return {
                     "updated"       : datetime.now(timezone.utc),
                     "message_ids"   : message_ids,
-                    "next"          : next,
-                    "upcoming"      : upcoming,
+                    "next"          : next_order,
+                    "upcoming"      : upcoming_order,
                     "total"         : total,
-                    "receipt"       : receipt,
+                    # "receipt"       : receipt,
+                    "voucher"       : voucher,
                     "orders"        : orders,
                 }
-            return payload_raw
         except Exception as err:
             raise UpdateFailed(f"Error fetching data: {err}") from err
