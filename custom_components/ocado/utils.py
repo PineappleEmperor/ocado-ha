@@ -564,7 +564,7 @@ def set_voucher(self, voucher: OcadoVoucher, now: datetime) -> bool:
         if validity_dt < now:
             return False
     self._attr_native_value = float(voucher.amount)
-    self._attr_icon = "mdi:receipt-text"
+    self._attr_icon = "mdi:ticket-percent"
     self._attr_extra_state_attributes = {
         "updated"               : voucher.issue_date,
         "voucher"               : voucher.voucher,
