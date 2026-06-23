@@ -1,12 +1,33 @@
 name-template: 'v$RESOLVED_VERSION'
 tag-template: 'v$RESOLVED_VERSION'
+# Sole labeler: the release-drafter autolabeler (run from pr-labeler.yml), keyed on the
+# PR TITLE only — create-dev-pr.yml sets the title to the winning commit type
+# (feat > fix > last), so labelling is effectively commit-driven. No branch rules (they
+# flap when the branch name disagrees with the commits). The breaking `!` rule must
+# precede `feature`, else `feat!` is swallowed as a minor `feature`.
+autolabeler:
+  - label: "xfeat"
+    title:
+      - '/^\w+(\(.+\))?!:/'
+  - label: "chore"
+    title:
+      - '/^(chore|docs)(\(.+\))?:/i'
+  - label: "fix"
+    title:
+      - '/^fix(\(.+\))?:/i'
+  - label: "feature"
+    title:
+      - '/^(feat|feature)(\(.+\))?:/i'
 categories:
+  - title: '🚨 Breaking Change'
+    labels:
+      - 'xfeat'
+      - 'xfeature'
+      - 'major'
   - title: '🚀 Features'
     labels:
       - 'feat'
       - 'feature'
-      - 'xfeat'
-      - 'xfeature'
       - 'enhancement'
   - title: '🐛 Bug Fixes'
     labels:
@@ -15,16 +36,20 @@ categories:
       - 'bug'
   - title: '🧰 Maintenance'
     label: 'chore'
-change-template: '- $TITLE @$AUTHOR (#$NUMBER)'
+change-template: |-
+  - $TITLE @$AUTHOR (#$NUMBER)
+  $BODY
 change-title-escapes: '\<*_&' # You can add # and @ to disable mentions, and add ` to disable code blocks.
 version-resolver:
   major:
     labels:
       - 'major'
-      - 'feature'
-      - 'feat'
+      - 'xfeature'
+      - 'xfeat'
   minor:
     labels:
+      - 'feat'
+      - 'feature'
       - 'minor'
   patch:
     labels:
