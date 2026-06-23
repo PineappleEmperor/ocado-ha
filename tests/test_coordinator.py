@@ -10,8 +10,8 @@
 # from custom_components.ocado.const import OcadoOrder
 # from custom_components.ocado.coordinator import OcadoUpdateCoordinator
 
-from homeassistant.setup import async_setup_component
 from custom_components.ocado.const import DOMAIN
+from homeassistant.setup import async_setup_component
 
 
 async def test_async_setup(hass):
@@ -48,7 +48,7 @@ async def test_async_setup(hass):
 #     """Test the OcadoUpdateCoordinator with mocked API responses."""
 #     fixtures_path = Path(__file__).parent / "fixtures"
 #     with open(fixtures_path / "none.json") as file:
-#         data = json.load(file)    
+#         data = json.load(file)
 #     # Mock the API endpoint for a successful response
 #     mock_api_url = ""
 #     aioclient_mock.get(

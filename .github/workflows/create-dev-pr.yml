@@ -1,0 +1,72 @@
+name: Create/Update Dev PR
+
+on:
+  push:
+    branches-ignore:
+      - main
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: dev-pr-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  create-or-update-pr:
+    runs-on: ubuntu-latest
+    outputs:
+      pr_number: ${{ steps.pr.outputs.pr_number }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Generate PR body and title type from commits
+        id: commits
+        run: |
+          AHEAD=$(git rev-list --count origin/main..HEAD)
+          echo "ahead=$AHEAD" >> $GITHUB_OUTPUT
+          BODY=$(git log origin/main..HEAD --pretty=format:"  - %s" --reverse)
+          if [ -z "$BODY" ]; then
+            BODY="  - (no commits ahead of main)"
+          fi
+          echo "body<<EOF" >> $GITHUB_OUTPUT
+          echo "$BODY" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+          SUBJECTS=$(git log origin/main..HEAD --pretty=format:"%s" --reverse)
+
+          TITLE=$(echo "$SUBJECTS" | grep -iE "^feat(\(.+\))?!?:" | tail -1)
+          if [ -z "$TITLE" ]; then
+            TITLE=$(echo "$SUBJECTS" | grep -iE "^fix(\(.+\))?!?:" | tail -1)
+          fi
+          if [ -z "$TITLE" ]; then
+            TITLE=$(echo "$SUBJECTS" | tail -1)
+          fi
+          TITLE=$(echo "$TITLE" | xargs)
+          echo "title=$TITLE" >> $GITHUB_OUTPUT
+
+      - name: Create or update draft PR
+        id: pr
+        if: steps.commits.outputs.ahead != '0'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BRANCH: ${{ github.ref_name }}
+          BODY: ${{ steps.commits.outputs.body }}
+          TITLE: ${{ steps.commits.outputs.title }}
+        run: |
+          PR_NUMBER=$(gh pr list --head "$BRANCH" --base main --state open --json number --jq '.[0].number')
+          if [ -z "$PR_NUMBER" ]; then
+            gh pr create \
+              --draft \
+              --title "$TITLE" \
+              --body "$BODY" \
+              --base main \
+              --head "$BRANCH"
+            PR_NUMBER=$(gh pr list --head "$BRANCH" --base main --state open --json number --jq '.[0].number')
+          else
+            gh pr edit "$PR_NUMBER" --title "$TITLE" --body "$BODY"
+          fi
+          echo "pr_number=$PR_NUMBER" >> $GITHUB_OUTPUT
