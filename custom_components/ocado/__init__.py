@@ -34,7 +34,10 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: OcadoConfigEntry)
 
 async def async_unload_entry(hass: HomeAssistant, config_entry: OcadoConfigEntry) -> bool:
     """Unload a config entry."""
-    return await hass.config_entries.async_unload_platforms(config_entry, PLATFORMS)
+    unloaded = await hass.config_entries.async_unload_platforms(config_entry, PLATFORMS)
+    if unloaded:
+        await config_entry.runtime_data.async_shutdown()
+    return unloaded
 
 
 async def async_remove_config_entry_device(

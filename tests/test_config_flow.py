@@ -22,8 +22,8 @@ async def test_user_flow_success(hass: HomeAssistant) -> None:
     result = await hass.config_entries.flow.async_init(
         DOMAIN, context={"source": SOURCE_USER}
     )
-    assert result["type"] == FlowResultType.FORM
-    assert result["step_id"] == "user"
+    assert result.get("type") == FlowResultType.FORM
+    assert result.get("step_id") == "user"
 
     with (
         patch(
@@ -37,9 +37,9 @@ async def test_user_flow_success(hass: HomeAssistant) -> None:
         )
         await hass.async_block_till_done()
 
-    assert result["type"] == FlowResultType.CREATE_ENTRY
-    assert result["title"] == "Ocado UK"
-    assert result["data"] == USER_INPUT
+    assert result.get("type") == FlowResultType.CREATE_ENTRY
+    assert result.get("title") == "Ocado UK"
+    assert result.get("data") == USER_INPUT
 
 
 async def test_user_flow_cannot_connect(hass: HomeAssistant) -> None:
@@ -54,8 +54,8 @@ async def test_user_flow_cannot_connect(hass: HomeAssistant) -> None:
         result = await hass.config_entries.flow.async_configure(
             result["flow_id"], USER_INPUT
         )
-    assert result["type"] == FlowResultType.FORM
-    assert result["errors"] == {"base": "cannot_connect"}
+    assert result.get("type") == FlowResultType.FORM
+    assert result.get("errors") == {"base": "cannot_connect"}
 
 
 async def test_user_flow_invalid_auth(hass: HomeAssistant) -> None:
@@ -70,16 +70,16 @@ async def test_user_flow_invalid_auth(hass: HomeAssistant) -> None:
         result = await hass.config_entries.flow.async_configure(
             result["flow_id"], USER_INPUT
         )
-    assert result["type"] == FlowResultType.FORM
-    assert result["errors"] == {"base": "invalid_auth"}
+    assert result.get("type") == FlowResultType.FORM
+    assert result.get("errors") == {"base": "invalid_auth"}
 
 
 async def test_reauth_flow(hass: HomeAssistant, mock_config_entry) -> None:
     """A reauth flow updates the stored password."""
     mock_config_entry.add_to_hass(hass)
     result = await mock_config_entry.start_reauth_flow(hass)
-    assert result["type"] == FlowResultType.FORM
-    assert result["step_id"] == "reauth_confirm"
+    assert result.get("type") == FlowResultType.FORM
+    assert result.get("step_id") == "reauth_confirm"
 
     with (
         patch(
@@ -91,8 +91,8 @@ async def test_reauth_flow(hass: HomeAssistant, mock_config_entry) -> None:
         result = await hass.config_entries.flow.async_configure(
             result["flow_id"], {"password": "newpassword"}
         )
-    assert result["type"] == FlowResultType.ABORT
-    assert result["reason"] == "reauth_successful"
+    assert result.get("type") == FlowResultType.ABORT
+    assert result.get("reason") == "reauth_successful"
     assert mock_config_entry.data["password"] == "newpassword"
     await hass.async_block_till_done()
 
@@ -101,8 +101,8 @@ async def test_reconfigure_flow(hass: HomeAssistant, mock_config_entry) -> None:
     """A reconfigure flow updates the connection settings."""
     mock_config_entry.add_to_hass(hass)
     result = await mock_config_entry.start_reconfigure_flow(hass)
-    assert result["type"] == FlowResultType.FORM
-    assert result["step_id"] == "reconfigure"
+    assert result.get("type") == FlowResultType.FORM
+    assert result.get("step_id") == "reconfigure"
 
     new_input = {**USER_INPUT, "imap_host": "imap.changed.com"}
     with (
@@ -115,7 +115,7 @@ async def test_reconfigure_flow(hass: HomeAssistant, mock_config_entry) -> None:
         result = await hass.config_entries.flow.async_configure(
             result["flow_id"], new_input
         )
-    assert result["type"] == FlowResultType.ABORT
-    assert result["reason"] == "reconfigure_successful"
+    assert result.get("type") == FlowResultType.ABORT
+    assert result.get("reason") == "reconfigure_successful"
     assert mock_config_entry.data["imap_host"] == "imap.changed.com"
     await hass.async_block_till_done()
