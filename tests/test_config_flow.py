@@ -25,13 +25,17 @@ async def test_user_flow_success(hass: HomeAssistant) -> None:
     assert result["type"] == FlowResultType.FORM
     assert result["step_id"] == "user"
 
-    with patch(
-        "custom_components.ocado.config_flow._validate_input",
-        return_value={"title": "Ocado UK"},
+    with (
+        patch(
+            "custom_components.ocado.config_flow._validate_input",
+            return_value={"title": "Ocado UK"},
+        ),
+        patch("custom_components.ocado.async_setup_entry", return_value=True),
     ):
         result = await hass.config_entries.flow.async_configure(
             result["flow_id"], USER_INPUT
         )
+        await hass.async_block_till_done()
 
     assert result["type"] == FlowResultType.CREATE_ENTRY
     assert result["title"] == "Ocado UK"
@@ -77,9 +81,12 @@ async def test_reauth_flow(hass: HomeAssistant, mock_config_entry) -> None:
     assert result["type"] == FlowResultType.FORM
     assert result["step_id"] == "reauth_confirm"
 
-    with patch(
-        "custom_components.ocado.config_flow._validate_input",
-        return_value={"title": "Ocado UK"},
+    with (
+        patch(
+            "custom_components.ocado.config_flow._validate_input",
+            return_value={"title": "Ocado UK"},
+        ),
+        patch("custom_components.ocado.async_setup_entry", return_value=True),
     ):
         result = await hass.config_entries.flow.async_configure(
             result["flow_id"], {"password": "newpassword"}
@@ -98,9 +105,12 @@ async def test_reconfigure_flow(hass: HomeAssistant, mock_config_entry) -> None:
     assert result["step_id"] == "reconfigure"
 
     new_input = {**USER_INPUT, "imap_host": "imap.changed.com"}
-    with patch(
-        "custom_components.ocado.config_flow._validate_input",
-        return_value={"title": "Ocado UK"},
+    with (
+        patch(
+            "custom_components.ocado.config_flow._validate_input",
+            return_value={"title": "Ocado UK"},
+        ),
+        patch("custom_components.ocado.async_setup_entry", return_value=True),
     ):
         result = await hass.config_entries.flow.async_configure(
             result["flow_id"], new_input
