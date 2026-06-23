@@ -1,8 +1,9 @@
 """Config flow for the Ocado integration."""
 
 from __future__ import annotations
-from imaplib import IMAP4_SSL as imap
 
+from collections.abc import Mapping
+from imaplib import IMAP4_SSL as imap
 import logging
 from typing import Any
 
@@ -14,9 +15,12 @@ from homeassistant.config_entries import (
     ConfigFlowResult,
     OptionsFlow,
 )
+from homeassistant.const import CONF_EMAIL, CONF_PASSWORD, CONF_SCAN_INTERVAL
+from homeassistant.core import HomeAssistant, callback
+from homeassistant.exceptions import HomeAssistantError
+import homeassistant.helpers.config_validation as cv
 
 from .const import (
-    DOMAIN,
     CONF_IMAP_DAYS,
     CONF_IMAP_FOLDER,
     CONF_IMAP_PORT,
@@ -26,22 +30,10 @@ from .const import (
     DEFAULT_IMAP_PORT,
     DEFAULT_IMAP_SERVER,
     DEFAULT_SCAN_INTERVAL,
+    DOMAIN,
     MIN_IMAP_DAYS,
     MIN_SCAN_INTERVAL,
 )
-
-from homeassistant.const import (
-    CONF_EMAIL,
-    CONF_PASSWORD,
-    CONF_SCAN_INTERVAL,
-)
-
-from homeassistant.core import HomeAssistant, callback
-from homeassistant.exceptions import HomeAssistantError
-from homeassistant.helpers.selector import selector  # noqa: F401
-import homeassistant.helpers.config_validation as cv
-
-from .coordinator import OcadoUpdateCoordinator  # noqa: F401
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -74,8 +66,8 @@ OCADO_SETTINGS_SCHEMA = vol.Schema(
 )
 
 
-async def _validate_input(hass: HomeAssistant, data: dict[str, Any]) -> dict[str, Any]:
-    """Validate the user input allows us to connect."""
+def _validate_input(hass: HomeAssistant, data: dict[str, Any]) -> dict[str, Any]:
+    """Validate the user input allows us to connect (blocking; run via executor)."""
     try:
         _LOGGER.debug("Testing IMAP server with host: %s, port: %s", data[CONF_IMAP_SERVER], data[CONF_IMAP_PORT])
         server = imap(host = data[CONF_IMAP_SERVER], port = data[CONF_IMAP_PORT], timeout = 30)
@@ -93,13 +85,13 @@ async def _validate_input(hass: HomeAssistant, data: dict[str, Any]) -> dict[str
         check = server.check()
         server.close()
         server.logout()
-    except Exception:
+    except Exception as err:
         _LOGGER.exception("Failed to select imap folder or check")
-        raise Exception
+        raise CannotConnect from err
     _LOGGER.debug("Checking the check: %s", check)
     if not check or check[0] != 'OK':
-        _LOGGER.exception("Check failed")
-        raise Exception
+        _LOGGER.error("Check failed")
+        raise CannotConnect("IMAP check failed")
     return {"title": "Ocado UK"}
     # return {"title": f"Ocado Integration - {data[CONF_EMAIL]}:{data[CONF_IMAP_SERVER]}"}
 
@@ -147,8 +139,8 @@ class OcadoConfigFlowHandler(ConfigFlow, domain=DOMAIN):
         if user_input is not None:
             # The form has been filled in and submitted, so process the data provided.
             _LOGGER.debug("User input received: %s", user_input)
-            try:                
-                info = await _validate_input(self.hass, user_input)
+            try:
+                info = await self.hass.async_add_executor_job(_validate_input, self.hass, user_input)
             except CannotConnect:
                 errors["base"] = "cannot_connect"
             except InvalidAuth:
@@ -156,22 +148,16 @@ class OcadoConfigFlowHandler(ConfigFlow, domain=DOMAIN):
             except Exception:  # pylint: disable=broad-except
                 _LOGGER.exception("Unexpected exception")
                 errors["base"] = "unknown"
-            
-            # The errors["base"] values match the values in your strings.json and translation files.
-            if "base" not in errors:
+            else:
                 # Validation was successful, so proceed to the next step.
                 # Set the unique ID
-                try:
-                    title = info.get("title") # type: ignore
-                except ValueError:
-                    _LOGGER.error("Cannot get title from info")
-                    raise ValueError
+                title = info.get("title") or "Ocado UK"
                 _LOGGER.debug("Setting unique ID")
                 await self.async_set_unique_id(title)
                 self._abort_if_unique_id_configured()
 
                 # Set our title variable here for use later
-                self._title = title # type: ignore
+                self._title = title
                 # save the input data for use later
                 self._input_data = user_input
 
@@ -196,7 +182,8 @@ class OcadoConfigFlowHandler(ConfigFlow, domain=DOMAIN):
 
         if self._input_data is not None:
             # if "base" not in errors:
-            self._input_data.update(user_input) # type: ignore
+            if user_input is not None:
+                self._input_data.update(user_input)
             return self.async_create_entry(title=self._title, data=self._input_data)
 
         return self.async_show_form(
@@ -211,17 +198,19 @@ class OcadoConfigFlowHandler(ConfigFlow, domain=DOMAIN):
     ) -> ConfigFlowResult:
         """Add reconfigure step to allow to reconfigure a config entry."""
         errors: dict[str, str] = {}
-        existing_entry = self.hass.config_entries.async_get_entry(
-            self.context["entry_id"] # type: ignore
-        )
+        entry_id = self.context.get("entry_id")
+        if not entry_id:
+            _LOGGER.error("Reconfiguration failed: entry ID not found.")
+            return self.async_abort(reason="Reconfigure Failed")
+        existing_entry = self.hass.config_entries.async_get_entry(entry_id)
         if existing_entry is None:
             _LOGGER.error("Reconfiguration failed: Config entry not found.")
-            return self.async_abort(reason="Reconfigure Failed")
+            return self.async_abort(reason="Reconfigure Failed: entry missing")
 
         if user_input is not None:
             _LOGGER.debug("Reconfigure user input: %s", user_input)
             try:
-                info = await _validate_input(self.hass, user_input)  # noqa: F841
+                await self.hass.async_add_executor_job(_validate_input, self.hass, user_input)
             except CannotConnect:
                 errors["base"] = "cannot_connect"
             except InvalidAuth:
@@ -245,24 +234,61 @@ class OcadoConfigFlowHandler(ConfigFlow, domain=DOMAIN):
             errors=errors,
         )
 
+    async def async_step_reauth(
+        self, entry_data: Mapping[str, Any]
+    ) -> ConfigFlowResult:
+        """Handle re-authentication when IMAP credentials stop working."""
+        return await self.async_step_reauth_confirm()
+
+    async def async_step_reauth_confirm(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Confirm re-authentication with an updated password."""
+        errors: dict[str, str] = {}
+        reauth_entry = self._get_reauth_entry()
+
+        if user_input is not None:
+            data = {**reauth_entry.data, CONF_PASSWORD: user_input[CONF_PASSWORD]}
+            try:
+                await self.hass.async_add_executor_job(_validate_input, self.hass, data)
+            except CannotConnect:
+                errors["base"] = "cannot_connect"
+            except InvalidAuth:
+                errors["base"] = "invalid_auth"
+            except Exception:  # pylint: disable=broad-except
+                _LOGGER.exception("Unexpected exception")
+                errors["base"] = "unknown"
+            else:
+                return self.async_update_reload_and_abort(
+                    reauth_entry,
+                    data=data,
+                    reason="reauth_successful",
+                )
+
+        return self.async_show_form(
+            step_id="reauth_confirm",
+            data_schema=vol.Schema({vol.Required(CONF_PASSWORD): cv.string}),
+            description_placeholders={"email": reauth_entry.data.get(CONF_EMAIL, "")},
+            errors=errors,
+        )
+
 
 class OcadoOptionsFlowHandler(OptionsFlow):
     """Handles the options flow."""
 
     def __init__(self, config_entry: ConfigEntry) -> None:
         """Initialize options flow."""
-        self._config_entry = config_entry
         self.options = dict(config_entry.options)
 
     async def async_step_init(self, user_input: dict[str, Any] | None = None):
         """Handle options flow."""
 
         errors: dict[str, str] = {}
-        
+
         if user_input is not None:
-            _LOGGER.debug("User options received: %s", user_input)            
+            _LOGGER.debug("User options received: %s", user_input)
             try:
-                info = _validate_options(self.hass, user_input)  # noqa: F841
+                await _validate_options(self.hass, user_input)
             except ValueError:
                 errors["base"] = "value_error"
             if "base" not in errors:

@@ -21,13 +21,11 @@ version-resolver:
   major:
     labels:
       - 'major'
-      - 'xfeature'
-      - 'xfeat'
+      - 'feature'
+      - 'feat'
   minor:
     labels:
       - 'minor'
-      - 'feat'
-      - 'feature'
   patch:
     labels:
       - 'patch'
