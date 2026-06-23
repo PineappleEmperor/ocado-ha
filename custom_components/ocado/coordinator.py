@@ -1,5 +1,7 @@
 """DataUpdateCoordinator for our integration."""
 
+from __future__ import annotations
+
 from datetime import datetime, timedelta, timezone
 import logging
 from typing import Any
@@ -7,18 +9,27 @@ from typing import Any
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_SCAN_INTERVAL
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import ConfigEntryAuthFailed
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
-from .const import CONF_IMAP_DAYS, DEFAULT_IMAP_DAYS, DEFAULT_SCAN_INTERVAL, DOMAIN
+from .const import (
+    CONF_IMAP_DAYS,
+    DEFAULT_IMAP_DAYS,
+    DEFAULT_SCAN_INTERVAL,
+    DOMAIN,
+    OcadoAuthError,
+)
 from .utils import email_triage, order_parse, sort_orders, total_parse, voucher_parse
 
 _LOGGER = logging.getLogger(__name__)
+
+type OcadoConfigEntry = ConfigEntry[OcadoUpdateCoordinator]
 
 
 class OcadoUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
     """Coordinator to manage all the data from Ocado emails."""
 
-    def __init__(self, hass: HomeAssistant, config_entry: ConfigEntry) -> None:
+    def __init__(self, hass: HomeAssistant, config_entry: OcadoConfigEntry) -> None:
         """Initialize the data update coordinator."""
         # assert self._config_entry is not None
 
@@ -36,16 +47,14 @@ class OcadoUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             always_update   = True,
         )
 
-        # Set variables from services
-        # self.last_uploaded_file: OcadoReceipt | None = None
-
     async def async_update_data(self) -> dict[str, Any]:
         """Fetch data from the IMAP server and filter the emails for Ocado ones."""
         _LOGGER.debug("Beginning coordinator update")
 
         try:
-            # Retrieve all the Ocado order confirmations from the last imap_days, will return None if there are no new emails
-            message_ids, triaged_emails = email_triage(self)
+            # Retrieve all the Ocado order confirmations from the last imap_days, will return None if there are no new emails.
+            # email_triage does blocking imaplib I/O, so run it in the executor to keep it off the event loop.
+            message_ids, triaged_emails = await self.hass.async_add_executor_job(email_triage, self)
             if triaged_emails is None:
                 _LOGGER.debug("No new emails found, returning cached data")
                 return self.data
@@ -59,24 +68,6 @@ class OcadoUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 next_order          = None
                 upcoming_order      = None
                 orders              = None
-            # Need to add a way to return old version by default
-            # if self.last_uploaded_file:
-            #     # Example: parse/process the uploaded file
-            #     receipt_bbds = self.last_uploaded_file
-            # else:
-            #     receipt_bbds = None
-            # If there has been a recent delivery, add it as recent.
-            # if triaged_emails.receipt is not None:
-            #     try:
-            #         # order           = receipt_parse(triaged_emails.receipt)
-            #         receipt         = triaged_emails.receipt
-            #         if receipt_bbds:
-            #             receipt.update_from(receipt_bbds)
-            #     except Exception:
-            #         receipt         = None
-            # else:
-            #     _LOGGER.info("No receipt email found.")
-            #     receipt             = None
             # If there has been a recent delivery, add the total.
             if triaged_emails.total is not None:
                 try:
@@ -85,7 +76,7 @@ class OcadoUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 except Exception:  # noqa: BLE001
                     total = None
             else:
-                _LOGGER.info("No receipt email found.")
+                _LOGGER.debug("No new total email found.")
                 total               = None
             if triaged_emails.voucher is not None:
                 try:
@@ -93,7 +84,7 @@ class OcadoUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 except Exception:  # noqa: BLE001
                     voucher         = None
             else:
-                _LOGGER.info("No voucher email found.")
+                _LOGGER.debug("No voucher email found.")
                 voucher             = None
             return {
                     "updated"       : datetime.now(timezone.utc),
@@ -101,9 +92,10 @@ class OcadoUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                     "next"          : next_order,
                     "upcoming"      : upcoming_order,
                     "total"         : total,
-                    # "receipt"       : receipt,
                     "voucher"       : voucher,
                     "orders"        : orders,
                 }
+        except OcadoAuthError as err:
+            raise ConfigEntryAuthFailed("IMAP authentication failed") from err
         except Exception as err:
             raise UpdateFailed(f"Error fetching data: {err}") from err

@@ -1,12 +1,11 @@
 """Utilities for Ocado UK."""
+from __future__ import annotations
+
 from datetime import date, datetime, timedelta
 from email import policy
 from email.message import EmailMessage
 from email.parser import BytesParser
 from imaplib import IMAP4_SSL as imap
-
-# import io
-# from pypdf import PdfReader
 import json
 import logging
 import re
@@ -16,7 +15,6 @@ from bs4 import BeautifulSoup
 from dateutil.parser import parse
 
 from .const import (
-    DAYS,
     EMPTY_ORDER,
     MARKETING_OCADO_ADDRESS,
     NEW_OCADO_ADDRESS,
@@ -28,21 +26,17 @@ from .const import (
     OCADO_VOUCHER_SUBJECT,
     REGEX_APM_TIME,
     REGEX_DATE,
-    # REGEX_DATE_FULL,
     REGEX_DAY_FULL,
     REGEX_EDIT_UNTIL,
-    REGEX_END_INDEX,
     REGEX_ISO_TIME,
     REGEX_MONTH_FULL,
     REGEX_ORDINALS,
     REGEX_VOUCHER_CODE,
     REGEX_YEAR,
-    STRING_FREEZER,
-    STRING_NO_BBD,
+    OcadoAuthError,
     OcadoEmail,
     OcadoEmails,
     OcadoOrder,
-    OcadoReceipt,
     OcadoVoucher,
 )
 
@@ -235,7 +229,10 @@ def email_triage(self) -> tuple[list[Any], OcadoEmails | None]:
     _LOGGER.debug("Beginning email triage")
     today = date.today()
     server = imap(host = self.imap_host, port = self.imap_port, timeout= 30)
-    server.login(self.email_address, self.password)
+    try:
+        server.login(self.email_address, self.password)
+    except imap.error as err:
+        raise OcadoAuthError("IMAP login failed") from err
     server.select(self.imap_folder, readonly=True)
     pattern = fr'SINCE "{(today - timedelta(days=self.imap_days)).strftime("%d-%b-%Y")}" (OR (FROM "{OCADO_ADDRESS}") (OR (FROM "{NEW_OCADO_ADDRESS}") (FROM "{MARKETING_OCADO_ADDRESS}"))) NOT SUBJECT "{OCADO_CUTOFF_SUBJECT}" NOT SUBJECT "{OCADO_SMARTPASS_SUBJECT}" NOT SUBJECT "{OCADO_RENEWAL_SUBJECT}"'
     result, message_ids = server.search(None, pattern)
@@ -246,7 +243,6 @@ def email_triage(self) -> tuple[list[Any], OcadoEmails | None]:
     ocado_confirmations =       []
     ocado_confirmed_orders =    []
     ocado_total =               None
-    ocado_receipt =             None
     ocado_voucher =             None
     # Check the previous message ids and return the old state if they're the same
     if self.data is not None:
@@ -276,14 +272,7 @@ def email_triage(self) -> tuple[list[Any], OcadoEmails | None]:
             ocado_cancelled.append(ocado_email.order_number)
         # If the order number isn't in the list of cancelled order numbers
         if ocado_email.order_number not in ocado_cancelled:
-            # This is done first, since if the order number exists already from a confirmation, we still want to add the receipt.
-            if ocado_email.email_type == "receipt":
-                # We only care about the most recent receipt
-                # This is currently broken due to Ocado changes with the PDF no longer included in emails
-                if ocado_receipt is None:
-                    _LOGGER.debug("Ocado order (%s) added to receipts.", ocado_email.order_number)
-                    ocado_receipt = OcadoReceipt(ocado_email.email_date, ocado_email.order_number)
-            elif ocado_email.email_type in ("confirmation", "update"):
+            if ocado_email.email_type in ("confirmation", "update"):
                 # Make sure we're not adding an older version of an order we already have
                 _LOGGER.debug("Confirmed order is not in the list of confirmed orders? %s", ocado_email.order_number not in ocado_confirmed_orders)
                 if ocado_email.order_number not in ocado_confirmed_orders:
@@ -316,7 +305,6 @@ def email_triage(self) -> tuple[list[Any], OcadoEmails | None]:
         cancelled = ocado_cancelled,
         confirmations = ocado_confirmations,
         total = ocado_total,
-        receipt = ocado_receipt,
         voucher = ocado_voucher,
     )
     _LOGGER.debug("Returning triaged emails")
@@ -488,17 +476,6 @@ def iconify(days: int) -> str:
     return "mdi:numeric-" + str(days) + "-circle"
 
 
-def bbd_iconify(days: int) -> str:
-    """Parse a number of days into a bbd icon."""
-    if days < 0:
-        return "mdi:close-circle"
-    if days == 0:
-        return "mdi:calendar-remove"
-    if days > 9:
-        return "mdi:numeric-9-plus-circle"
-    return "mdi:numeric-" + str(days) + "-circle"
-
-
 def get_window(delivery_datetime: datetime, delivery_window_end: datetime) -> str:
     """Returns the delivery window in string format."""
     start = delivery_datetime.strftime("%H:%M")
@@ -597,29 +574,6 @@ def set_voucher(self, voucher: OcadoVoucher, now: datetime) -> bool:
     return True
 
 
-def set_bbds(self, email: OcadoReceipt, day: str, now: datetime) -> bool:
-    """This function validates a pdf receipt and returns the formatted BBDs."""
-    _LOGGER.debug("Setting bbd")
-    if hasattr(email, day) is True and hasattr(email, "date_dict") is True:
-        today = now.date()
-        date_dict = email.date_dict
-        day_list = getattr(email, day)
-        day_date = date_dict.get(DAYS.index(day))
-        if day_list is not None and day_date is not None:
-            days_until = (day_date - today).days
-            self._attr_native_value = len(day_list)
-            self._attr_icon = bbd_iconify(days_until)
-            attributes = {
-                "updated"               : email.updated,
-                "order_number"          : email.order_number,
-                "date"                  : day_date,
-                "bbds"                  : day_list,
-            }
-            self._attr_extra_state_attributes = attributes
-            return True
-    return False
-
-
 def convert_attributes(obj):
     """Function to convert datetimes and dates in objects for serialisation."""
     if isinstance(obj, (datetime, date)):
@@ -630,50 +584,3 @@ def convert_attributes(obj):
 def detect_attr_changes(d1: dict, d2: dict) -> bool:
     """Return True if the two attribute dicts differ once serialised."""
     return hash(json.dumps(d1, sort_keys=True, default=convert_attributes)) != hash(json.dumps(d2, sort_keys=True, default=convert_attributes))
-
-
-def HeaderIndex(string: str, receipt_list: list) -> int | None:
-    """Returns the first index of a header in a list and removes any other occurences from the list."""
-    count = receipt_list.count(string)
-    indices = []
-    if count == 0:
-        return None
-    index = 0
-    while count > 0:
-        index = receipt_list.index(string, index)
-        indices.append(index)
-        index += 1
-        count -= 1
-    first_index = indices.pop(0)
-    for i in range(len(indices)):
-        receipt_list.pop(indices[i])
-    return first_index
-
-
-def BBDIndex(string: str, receipt_list: list) -> list[int] | None:
-    """Returns the indices of all occurences in a list."""
-    count = receipt_list.count(string)
-    indices = []
-    if count == 0:
-        return None
-    index = 0
-    while count > 0:
-        index = receipt_list.index(string, index)
-        indices.append(index)
-        index += 1
-        count -= 1
-    return indices
-
-
-def FindEndIndex(receipt_list: list) -> int:
-    """Return the index of the line marking the end of the best-before section."""
-    if STRING_NO_BBD in receipt_list:
-        return receipt_list.index(STRING_NO_BBD)
-    if STRING_FREEZER in receipt_list:
-        return receipt_list.index(STRING_FREEZER)
-    index = -1
-    for i in range(len(receipt_list)):
-        if re.search(REGEX_END_INDEX, receipt_list[i]):
-            index = i
-            break
-    return index

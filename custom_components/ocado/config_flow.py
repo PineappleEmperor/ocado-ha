@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from imaplib import IMAP4_SSL as imap
 import logging
 from typing import Any
@@ -65,8 +66,8 @@ OCADO_SETTINGS_SCHEMA = vol.Schema(
 )
 
 
-async def _validate_input(hass: HomeAssistant, data: dict[str, Any]) -> dict[str, Any]:
-    """Validate the user input allows us to connect."""
+def _validate_input(hass: HomeAssistant, data: dict[str, Any]) -> dict[str, Any]:
+    """Validate the user input allows us to connect (blocking; run via executor)."""
     try:
         _LOGGER.debug("Testing IMAP server with host: %s, port: %s", data[CONF_IMAP_SERVER], data[CONF_IMAP_PORT])
         server = imap(host = data[CONF_IMAP_SERVER], port = data[CONF_IMAP_PORT], timeout = 30)
@@ -139,7 +140,7 @@ class OcadoConfigFlowHandler(ConfigFlow, domain=DOMAIN):
             # The form has been filled in and submitted, so process the data provided.
             _LOGGER.debug("User input received: %s", user_input)
             try:
-                info = await _validate_input(self.hass, user_input)
+                info = await self.hass.async_add_executor_job(_validate_input, self.hass, user_input)
             except CannotConnect:
                 errors["base"] = "cannot_connect"
             except InvalidAuth:
@@ -209,7 +210,7 @@ class OcadoConfigFlowHandler(ConfigFlow, domain=DOMAIN):
         if user_input is not None:
             _LOGGER.debug("Reconfigure user input: %s", user_input)
             try:
-                await _validate_input(self.hass, user_input)
+                await self.hass.async_add_executor_job(_validate_input, self.hass, user_input)
             except CannotConnect:
                 errors["base"] = "cannot_connect"
             except InvalidAuth:
@@ -230,6 +231,44 @@ class OcadoConfigFlowHandler(ConfigFlow, domain=DOMAIN):
         return self.async_show_form(
             step_id="reconfigure",
             data_schema=OCADO_SETTINGS_SCHEMA,
+            errors=errors,
+        )
+
+    async def async_step_reauth(
+        self, entry_data: Mapping[str, Any]
+    ) -> ConfigFlowResult:
+        """Handle re-authentication when IMAP credentials stop working."""
+        return await self.async_step_reauth_confirm()
+
+    async def async_step_reauth_confirm(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Confirm re-authentication with an updated password."""
+        errors: dict[str, str] = {}
+        reauth_entry = self._get_reauth_entry()
+
+        if user_input is not None:
+            data = {**reauth_entry.data, CONF_PASSWORD: user_input[CONF_PASSWORD]}
+            try:
+                await self.hass.async_add_executor_job(_validate_input, self.hass, data)
+            except CannotConnect:
+                errors["base"] = "cannot_connect"
+            except InvalidAuth:
+                errors["base"] = "invalid_auth"
+            except Exception:  # pylint: disable=broad-except
+                _LOGGER.exception("Unexpected exception")
+                errors["base"] = "unknown"
+            else:
+                return self.async_update_reload_and_abort(
+                    reauth_entry,
+                    data=data,
+                    reason="reauth_successful",
+                )
+
+        return self.async_show_form(
+            step_id="reauth_confirm",
+            data_schema=vol.Schema({vol.Required(CONF_PASSWORD): cv.string}),
+            description_placeholders={"email": reauth_entry.data.get(CONF_EMAIL, "")},
             errors=errors,
         )
 

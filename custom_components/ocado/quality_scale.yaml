@@ -1,0 +1,80 @@
+rules:
+  # Bronze
+  action-setup:
+    status: exempt
+    comment: The integration registers no custom actions.
+  appropriate-polling: done
+  brands: done
+  common-modules: done
+  config-flow-test-coverage: done
+  config-flow: done
+  dependency-transparency: done
+  docs-actions:
+    status: exempt
+    comment: The integration provides no custom actions to document.
+  docs-high-level-description: done
+  docs-installation-instructions: done
+  docs-removal-instructions: done
+  entity-event-setup: done
+  entity-unique-id: done
+  has-entity-name: done
+  runtime-data: done
+  test-before-configure: done
+  test-before-setup: done
+  unique-config-entry: done
+
+  # Silver
+  config-entry-unloading: done
+  log-when-unavailable: done
+  entity-unavailable: done
+  action-exceptions:
+    status: exempt
+    comment: The integration registers no custom actions.
+  reauthentication-flow: done
+  parallel-updates: done
+  test-coverage: done
+  integration-owner: done
+  docs-installation-parameters: done
+  docs-configuration-parameters: done
+
+  # Gold
+  entity-translations: done
+  entity-device-class: todo
+  devices: done
+  entity-category: todo
+  entity-disabled-by-default: done
+  discovery:
+    status: exempt
+    comment: Ocado data arrives by IMAP email; there is nothing on the network to discover.
+  stale-devices:
+    status: exempt
+    comment: A single static device is created per config entry; nothing becomes stale.
+  diagnostics: todo
+  exception-translations: todo
+  icon-translations: todo
+  reconfiguration-flow: done
+  dynamic-devices:
+    status: exempt
+    comment: The integration exposes one fixed device; no devices are added at runtime.
+  discovery-update-info:
+    status: exempt
+    comment: No discovery, so there is no discovery info to update.
+  repair-issues: todo
+  docs-use-cases: todo
+  docs-supported-devices:
+    status: exempt
+    comment: This is a service integration with no physical devices.
+  docs-supported-functions: todo
+  docs-data-update: todo
+  docs-known-limitations: todo
+  docs-troubleshooting: todo
+  docs-examples: done
+
+  # Platinum
+  async-dependency:
+    status: exempt
+    comment: Email access uses the standard-library imaplib (synchronous), run via the executor.
+  inject-websession:
+    status: exempt
+    comment: The integration talks to IMAP, not HTTP, so there is no web session to inject.
+  strict-typing: todo
