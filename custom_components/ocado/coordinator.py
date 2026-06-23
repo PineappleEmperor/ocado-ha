@@ -106,4 +106,7 @@ class OcadoUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         except OcadoAuthError as err:
             raise ConfigEntryAuthFailed("IMAP authentication failed") from err
         except Exception as err:
+            if self.data is not None:
+                _LOGGER.warning("Keeping cached Ocado data after fetch error: %s", err)
+                return self.data
             raise UpdateFailed(f"Error fetching data: {err}") from err

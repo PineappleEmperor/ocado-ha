@@ -71,3 +71,19 @@ async def test_update_uses_credentials_from_entry(
         mock_config_entry.data["email"], mock_config_entry.data["password"]
     )
     assert "voucher" in data
+
+
+async def test_transient_error_keeps_cached_data(
+    hass: HomeAssistant, mock_config_entry
+) -> None:
+    """A non-auth fetch failure after a success keeps the last-known data."""
+    coordinator = OcadoUpdateCoordinator(hass, mock_config_entry)
+    cached = {"voucher": None, "orders": None}
+    coordinator.data = cached
+    with patch(
+        "custom_components.ocado.coordinator.email_triage",
+        side_effect=TimeoutError("read operation timed out"),
+    ):
+        data = await coordinator.async_update_data()
+
+    assert data is cached
