@@ -7,13 +7,16 @@ import logging
 from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import CONF_SCAN_INTERVAL
+from homeassistant.const import CONF_EMAIL, CONF_PASSWORD, CONF_SCAN_INTERVAL
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryAuthFailed
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
 from .const import (
     CONF_IMAP_DAYS,
+    CONF_IMAP_FOLDER,
+    CONF_IMAP_PORT,
+    CONF_IMAP_SERVER,
     DEFAULT_IMAP_DAYS,
     DEFAULT_SCAN_INTERVAL,
     DOMAIN,
@@ -31,7 +34,12 @@ class OcadoUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
     def __init__(self, hass: HomeAssistant, config_entry: OcadoConfigEntry) -> None:
         """Initialize the data update coordinator."""
-        # assert self._config_entry is not None
+        # Set connection variables from the config entry data
+        self.email_address  : str  = config_entry.data[CONF_EMAIL]
+        self.password       : str  = config_entry.data[CONF_PASSWORD]
+        self.imap_host      : str  = config_entry.data[CONF_IMAP_SERVER]
+        self.imap_port      : int  = config_entry.data[CONF_IMAP_PORT]
+        self.imap_folder    : str  = config_entry.data[CONF_IMAP_FOLDER]
 
         # Set variables from options
         self.scan_interval  : int  = config_entry.options.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)
