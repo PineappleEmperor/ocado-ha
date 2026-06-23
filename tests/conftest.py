@@ -1,18 +1,14 @@
 """Fixtures for testing."""
 
+import imaplib
 import logging
+from unittest.mock import MagicMock, patch
 
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
-# from email import message_from_bytes
-# from pathlib import Path
-# from homeassistant.setup import async_setup_component
-# from homeassistant.helpers import entity_component
 from custom_components.ocado.const import DOMAIN
 from homeassistant.config_entries import ConfigEntryState
-
-# from unittest.mock import AsyncMock, MagicMock, patch
 
 logger = logging.getLogger(__name__)
 
@@ -21,6 +17,18 @@ logger = logging.getLogger(__name__)
 def auto_enable_custom_integrations(enable_custom_integrations):
     """Enable custom integrations for all tests."""
     return
+
+
+@pytest.fixture(autouse=True)
+def mock_imap():
+    """Stop tests opening real IMAP sockets; yield a healthy empty inbox."""
+    server = MagicMock()
+    server.select.return_value = ("OK", [b"1"])
+    server.search.return_value = ("OK", [b""])
+    with patch("custom_components.ocado.utils.imap") as utils_imap:
+        utils_imap.error = imaplib.IMAP4.error
+        utils_imap.return_value = server
+        yield utils_imap
 
 
 @pytest.fixture

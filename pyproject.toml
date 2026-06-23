@@ -1,5 +1,5 @@
 [tool.pylint.MAIN]
-py-version = "3.13"
+py-version = "3.14"
 # Use a conservative default here; 2 should speed up most setups and not hurt
 # any too bad. Override on command line as appropriate.
 jobs = 2
@@ -342,6 +342,7 @@ max-line-length-suggestions = 72
 
 [tool.ruff]
 required-version = ">=0.12.1"
+target-version = "py314"
 
 [tool.ruff.lint]
 select = [

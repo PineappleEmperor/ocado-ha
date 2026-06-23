@@ -1,6 +1,7 @@
 """Tests for the Ocado update coordinator."""
 
-from unittest.mock import patch
+import imaplib
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -47,3 +48,26 @@ async def test_update_success_builds_data(
     }
     assert data["voucher"] is None
     assert data["total"] is None
+
+
+async def test_update_uses_credentials_from_entry(
+    hass: HomeAssistant, mock_config_entry
+) -> None:
+    """Regression guard: the coordinator reads IMAP creds from entry.data."""
+    coordinator = OcadoUpdateCoordinator(hass, mock_config_entry)
+    fake_imap = MagicMock()
+    fake_imap.error = imaplib.IMAP4.error
+    server = fake_imap.return_value
+    server.select.return_value = ("OK", [b"1"])
+    server.search.return_value = ("OK", [b""])
+
+    with patch("custom_components.ocado.utils.imap", fake_imap):
+        data = await coordinator.async_update_data()
+
+    _, kwargs = fake_imap.call_args
+    assert kwargs["host"] == mock_config_entry.data["imap_host"]
+    assert kwargs["port"] == mock_config_entry.data["imap_port"]
+    server.login.assert_called_once_with(
+        mock_config_entry.data["email"], mock_config_entry.data["password"]
+    )
+    assert "voucher" in data
