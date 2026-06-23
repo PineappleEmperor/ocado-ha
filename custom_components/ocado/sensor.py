@@ -10,6 +10,7 @@ from homeassistant.components.sensor import (
     SensorDeviceClass,
     SensorEntity,
     SensorEntityDescription,
+    SensorStateClass,
 )
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant, callback
@@ -493,6 +494,7 @@ class OcadoOrderList(CoordinatorEntity, SensorEntity):
         self._attr_unique_id = "ocado_orders"
         self._globalid = "ocado_orders"
         self._attr_icon = "mdi:cart-outline"
+        self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_native_value = None
 
     async def async_added_to_hass(self) -> None:
@@ -519,15 +521,15 @@ class OcadoOrderList(CoordinatorEntity, SensorEntity):
 
         orders = ocado_data.get("orders")
         if orders is not None:
-            self._attr_native_value = datetime.now()
+            self._attr_native_value = len(orders)
             self._attr_icon = "mdi:clipboard-list"
             json_orders = [order.toJSON() for order in orders]
             self._attr_extra_state_attributes = {
                 "orders": json_orders
             }
         else:
-            self._attr_native_value = None
-            self._attr_icon = "mdi:help-circle"
+            self._attr_native_value = 0
+            self._attr_icon = "mdi:clipboard-list"
             self._attr_extra_state_attributes = {
                 "orders": []
             }
