@@ -67,10 +67,10 @@ class OcadoVoucher(CoordinatorEntity, SensorEntity):
         self._attr_translation_key = "latest_voucher"
         self._attr_unique_id = "ocado_latest_voucher"
         self._globalid = "ocado_latest_voucher"
-        self._attr_icon = "mdi:receipt"
+        self._attr_icon = "mdi:ticket-percent"
         self._attr_device_class = SensorDeviceClass.MONETARY
         self._attr_native_unit_of_measurement = "GBP"
-        self._attr_native_value = None
+        self._attr_native_value = 0
 
     async def async_added_to_hass(self):
         """Add to HA."""
@@ -86,8 +86,8 @@ class OcadoVoucher(CoordinatorEntity, SensorEntity):
         if not ocado_data:
             if self.entity_id is None:
                 _LOGGER.warning("Coordinator data is None for %s", self.entity_id)
-                self._attr_native_value = None
-                self._attr_icon = "mdi:help-circle"
+                self._attr_native_value = 0
+                self._attr_icon = "mdi:ticket-percent"
                 self._attr_extra_state_attributes = {
                     "updated":      datetime.now(),
                     "voucher": None,
@@ -101,12 +101,9 @@ class OcadoVoucher(CoordinatorEntity, SensorEntity):
         # order = ocado_data.get("next") or ocado_data.get("upcoming")
         # Switch between orders depending on delivery datetime or output None
         voucher = ocado_data.get("voucher")
-        if voucher is not None:
-            result = set_voucher(self, voucher, now)
-            _LOGGER.debug("Set_voucher returned %s", result)
-        else:
-            self._attr_native_value = None
-            self._attr_icon = "mdi:help-circle"
+        if voucher is None or not set_voucher(self, voucher, now):
+            self._attr_native_value = 0
+            self._attr_icon = "mdi:ticket-percent"
             self._attr_extra_state_attributes = {
                 "updated":      datetime.now(),
                 "voucher": None,
