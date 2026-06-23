@@ -51,11 +51,14 @@ async def mock_config_entry(hass):
 
 @pytest.fixture
 async def init_integration(hass, mock_config_entry):
-    """Set up the Ocado integration for testing."""
+    """Set up the Ocado integration for testing, unloading on teardown."""
     await hass.config_entries.async_setup(mock_config_entry.entry_id)
     await hass.async_block_till_done()
     assert mock_config_entry.state == ConfigEntryState.LOADED
-    return mock_config_entry
+    yield mock_config_entry
+    if mock_config_entry.state == ConfigEntryState.LOADED:
+        await hass.config_entries.async_unload(mock_config_entry.entry_id)
+        await hass.async_block_till_done()
 
 
 # @pytest.fixture
