@@ -87,6 +87,7 @@ async def test_reauth_flow(hass: HomeAssistant, mock_config_entry) -> None:
     assert result["type"] == FlowResultType.ABORT
     assert result["reason"] == "reauth_successful"
     assert mock_config_entry.data["password"] == "newpassword"
+    await hass.async_block_till_done()
 
 
 async def test_reconfigure_flow(hass: HomeAssistant, mock_config_entry) -> None:
@@ -107,3 +108,4 @@ async def test_reconfigure_flow(hass: HomeAssistant, mock_config_entry) -> None:
     assert result["type"] == FlowResultType.ABORT
     assert result["reason"] == "reconfigure_successful"
     assert mock_config_entry.data["imap_host"] == "imap.changed.com"
+    await hass.async_block_till_done()
