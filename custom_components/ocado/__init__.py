@@ -37,6 +37,15 @@ async def async_unload_entry(hass: HomeAssistant, config_entry: OcadoConfigEntry
     return await hass.config_entries.async_unload_platforms(config_entry, PLATFORMS)
 
 
+async def async_remove_config_entry_device(
+    hass: HomeAssistant,
+    config_entry: OcadoConfigEntry,
+    device_entry: dr.DeviceEntry,
+) -> bool:
+    """Allow a device to be deleted from the UI."""
+    return True
+
+
 async def _async_update_listener(hass: HomeAssistant, config_entry: OcadoConfigEntry) -> None:
     """Reload the integration when its options change."""
     await hass.config_entries.async_reload(config_entry.entry_id)
