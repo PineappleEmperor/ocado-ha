@@ -21,21 +21,24 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Get base branch
-        run: echo "BASE_REF=${{ github.event.pull_request.base.ref || 'main' }}" >> $GITHUB_ENV
-
-      - name: Checkout base manifest.json
+      - name: Get last released version
+        id: base
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          git fetch origin $BASE_REF
-          git show origin/$BASE_REF:custom_components/ocado/manifest.json > ../manifest_base.json
+          # Compare against the last published release, not main, so several
+          # unreleased PRs can share a version and dependency PRs need no bump.
+          LATEST_TAG=$(gh release list --repo ${{ github.repository }} --exclude-drafts --limit 1 --json tagName --jq '.[0].tagName')
+          echo "Last released tag: $LATEST_TAG"
+          echo "base_version=${LATEST_TAG#v}" >> $GITHUB_OUTPUT
 
       - name: Compare manifest versions
         id: compare
         run: |
-          BASE_VERSION=$(jq -r '.version' ../manifest_base.json)
+          BASE_VERSION="${{ steps.base.outputs.base_version }}"
           PR_VERSION=$(jq -r '.version' custom_components/ocado/manifest.json)
 
-          echo "Base version: $BASE_VERSION"
+          echo "Base (last release) version: $BASE_VERSION"
           echo "PR version: $PR_VERSION"
 
           if [ "$BASE_VERSION" == "$PR_VERSION" ]; then
