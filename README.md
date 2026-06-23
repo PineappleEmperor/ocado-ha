@@ -15,7 +15,7 @@ This is an unofficial Ocado integration for Home Assistant. This integration cre
 I'd suggest creating a new email address and set up auto-forwarding on any emails you wish this integration, or any other IMAP integration to access.
 
 > [!NOTE]
-> **AI assistance:** I'm a programmer; this project is built with AI (Claude, via Claude Code) for implementation, code review, and QA — under human direction, guided by my [`ha-integration`](https://github.com/PineappleEmperor/pineapple-claude-hacs) skill. We challenge each other's choices: I review and push back on the AI's output, and it questions my decisions and flags trade-offs. Architecture and final review are mine; every change is human-reviewed before it merges.
+> **AI assistance:** I'm a programmer; this project is built with AI (Claude, via Claude Code) for implementation, code review, and QA — under human direction, guided by my [`ha-integration`](https://github.com/PineappleEmperor/pineapple-claude-hacs) skill. Architecture and final review are mine; every change is human-reviewed before it merges.
 
 Installation
 ------------
@@ -33,6 +33,22 @@ Configuration
 1.  In Home Assistant, navigate to **Configuration** > **Devices & Services**.
 2.  Click on **Add Integration** and search for "Ocado".
 3.  Fill in the required fields similar to most IMAP-based integrations.
+
+The setup form asks for standard IMAP connection parameters:
+
+<div style="margin-left: 25px;">
+
+| **Parameter**             | **Description**                                          | **Default**       |
+|---------------------------|---------------------------------------------------------|-------------------|
+| **IMAP email**            | The mailbox to read Ocado emails from.                  | –                 |
+| **Password**              | Password (or app password) for that mailbox. Stored in your Home Assistant configuration. | – |
+| **IMAP server**           | IMAP host for the mailbox.                              | `imap.gmail.com`  |
+| **IMAP server port**      | IMAP SSL port.                                          | `993`             |
+| **Email account folder**  | Folder/label to scan for Ocado emails.                  | `INBOX`           |
+
+</div>
+
+If the password later stops working (e.g. you rotate it), Home Assistant raises a **re-authentication** prompt so you can enter the new password without removing the integration.
 
 ### Configuration Options
 
@@ -54,10 +70,6 @@ Features
 [Custom Button Card](/docs/community_templates/custom_button_card.yaml) by @PineappleEmperor
 \
 <img src="/docs/images/custom_button_card.png" alt="Example Custom Button Card" width="500"/>
-
-[Bubble Popup Card with Markdown](/docs/community_templates/bubble_card_markdown.yaml) by @PineappleEmperor
-\
-<img src="/docs/images/bubble_card_markdown.png" alt="Example Bubble Card Popup with Markdown (for BBDs)" width="500"/>
 
 ### Tips & Tricks
 
@@ -126,10 +138,10 @@ I also have a grocery budget 'pot' and an extension to the notification can info
 
 ### Devices & Sensors
 
-The integration offers 2 devices. The first contains the details about upcoming orders:
+The integration offers a single device containing the details about your orders:
 <details>
 <summary><strong>Ocado (UK) Deliveries</strong></summary>
-This device has 5 sensors:
+This device has 6 sensors:
 <details>
 <summary><strong>Last Total Sensor</strong></summary>
 <div style="margin-left: 25px;">
@@ -220,34 +232,34 @@ It has a single attribute:
 
 </div>
 </details>
-</details>
 
 
 <details>
-<summary><strong>Ocado (UK) Best Befores</strong></summary>
-This device has a sensor for each day of the week:
-<details>
-<summary><strong>{{day}} Sensor</strong></summary>
+<summary><strong>Latest Voucher Sensor</strong></summary>
 <div style="margin-left: 25px;">
 
-This sensor provides number of best before dates on the chosen day/date.
+This sensor provides the amount of the most recent valid Ocado Price Promise voucher. The state is the voucher amount (GBP); it clears once the voucher's validity date has passed.
 
 It has four attributes:
 
 | **Attribute**     | **Description**                                            |
 |-------------------|------------------------------------------------------------|
 | **Updated**       | This is the datetime of the email the info was taken from. |
-| **Order Number**  | The order number associated with the total.                |
-| **Date**          | The date teh day falls on (i.e. the best before date).     |
-| **BBDs**          | The list of items with a best before date on this date.    |
+| **Voucher**       | The voucher code.                                          |
+| **Amount**        | The voucher amount.                                        |
+| **Valid until**   | The date the voucher is valid until.                       |
 
 </div>
 </details>
 </details>
 
+Removal
+-------
+Navigate to **Settings** > **Devices & Services**, select the Ocado integration, open the three-dot menu and choose **Delete**. This removes the config entry, its device and all of its sensors. No changes to your mailbox or Ocado account are needed.
+
 Future Plans
 --------
-1. Testing 😅
+1. Best-before-date sensors (parked pending an Ocado receipt-format change)
 
 <!-- Badges -->
 
