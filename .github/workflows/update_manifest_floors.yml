@@ -1,0 +1,37 @@
+name: Update manifest floors
+
+on:
+  schedule:
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  floors:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+
+      - run: pip install packaging
+
+      - name: Raise floors and push branch
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          python scripts/update_manifest_floors.py
+          if git diff --quiet; then
+            echo "No floor changes."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git checkout -B chore/manifest-floors
+          git add custom_components/ocado/manifest.json
+          git commit -m "chore: raise manifest dependency floors"
+          git push -f origin chore/manifest-floors
