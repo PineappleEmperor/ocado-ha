@@ -46,9 +46,7 @@ rules:
   discovery:
     status: exempt
     comment: Ocado data arrives by IMAP email; there is nothing on the network to discover.
-  stale-devices:
-    status: exempt
-    comment: A single static device is created per config entry; nothing becomes stale.
+  stale-devices: done
   diagnostics: todo
   exception-translations: todo
   icon-translations: todo
