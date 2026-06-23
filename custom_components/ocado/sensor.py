@@ -1,6 +1,7 @@
 """Sensor setup for Ocado UK Integration."""
 
-# from dataclasses import dataclass
+from __future__ import annotations
+
 from datetime import datetime
 import logging
 from typing import Any
@@ -10,42 +11,31 @@ from homeassistant.components.sensor import (
     SensorEntity,
     SensorEntityDescription,
 )
-from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
-from homeassistant.helpers.restore_state import RestoreEntity
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from homeassistant.util import dt as dt_util
 
-from .const import (
-    DAYS,
-    DOMAIN,
-    OCADO_BBD_DEVICE_DESCRIPTION,
-    OCADO_DELIVERY_DEVICE_DESCRIPTION,
-    WEEKDAY_MAP,
-    OcadoOrder,
-)
-from .coordinator import OcadoUpdateCoordinator
-from .utils import detect_attr_changes, set_bbds, set_edit_order, set_order, set_voucher
+from .const import DOMAIN, OCADO_DELIVERY_DEVICE_DESCRIPTION, OcadoOrder
+from .coordinator import OcadoConfigEntry, OcadoUpdateCoordinator
+from .utils import detect_attr_changes, set_edit_order, set_order, set_voucher
 
 PLATFORMS = [Platform.SENSOR]
+PARALLEL_UPDATES = 0
 _LOGGER = logging.getLogger(__name__)
 CONFIG_SCHEMA = cv.empty_config_schema(DOMAIN)
 
 
 async def async_setup_entry(
     hass: HomeAssistant,
-    config_entry: ConfigEntry,
+    config_entry: OcadoConfigEntry,
     async_add_entities: AddEntitiesCallback,
-):# -> bool:
+) -> None:
     """Set up the Sensors."""
-    # This gets the data update coordinator from the config entry runtime data as specified in your __init__.py
-    # coordinator: OcadoUpdateCoordinator = config_entry.runtime_data.coordinator
-    coordinator: OcadoUpdateCoordinator = hass.data[DOMAIN][config_entry.entry_id]["coordinator"]
-    _LOGGER.debug("Succesfully loaded coordinator.")
-
+    coordinator = config_entry.runtime_data
+    _LOGGER.debug("Successfully loaded coordinator.")
 
     sensors = [
         OcadoDelivery(coordinator),
@@ -53,20 +43,12 @@ async def async_setup_entry(
         OcadoTotal(coordinator),
         OcadoUpcoming(coordinator),
         OcadoOrderList(coordinator),
-        OcadoVoucher(coordinator)
+        OcadoVoucher(coordinator),
     ]
-    sensors = sensors + create_bbd_sensor_entities(coordinator)
 
     _LOGGER.debug("Adding sensors.")
     async_add_entities(sensors, update_before_add=True)
     _LOGGER.debug("Sensors added.")
-    # return True
-
-
-
-def create_bbd_sensor_entities(coordinator):#, entry_id):
-    """Create bbd sensor entities based on coordinator data."""
-    return [OcadoBBDs(coordinator, day) for day in DAYS[:-1]]
 
 
 class OcadoVoucher(CoordinatorEntity, SensorEntity):
@@ -81,7 +63,8 @@ class OcadoVoucher(CoordinatorEntity, SensorEntity):
         self.device_id = "Ocado Deliveries"
         self._attr_device_info = OCADO_DELIVERY_DEVICE_DESCRIPTION
         self._attr_extra_state_attributes = {}
-        self._attr_name = "Ocado Latest Voucher"
+        self._attr_has_entity_name = True
+        self._attr_translation_key = "latest_voucher"
         self._attr_unique_id = "ocado_latest_voucher"
         self._globalid = "ocado_latest_voucher"
         self._attr_icon = "mdi:receipt"
@@ -157,7 +140,8 @@ class OcadoDelivery(CoordinatorEntity, SensorEntity):
         self.device_id = "Ocado Deliveries"
         self._attr_device_info = OCADO_DELIVERY_DEVICE_DESCRIPTION
         self._attr_extra_state_attributes = {}
-        self._attr_name = "Ocado Next Delivery"
+        self._attr_has_entity_name = True
+        self._attr_translation_key = "next_delivery"
         self._attr_unique_id = "ocado_next_delivery"
         self._globalid = "ocado_next_delivery"
         self._attr_icon = "mdi:cart-outline"
@@ -254,7 +238,8 @@ class OcadoEdit(CoordinatorEntity, SensorEntity):
         self.device_id = "Ocado Deliveries"
         self._attr_device_info = OCADO_DELIVERY_DEVICE_DESCRIPTION
         self._attr_extra_state_attributes = {}
-        self._attr_name = "Ocado Next Edit Deadline"
+        self._attr_has_entity_name = True
+        self._attr_translation_key = "next_edit_deadline"
         self._attr_unique_id = "ocado_next_edit_deadline"
         self._globalid = "ocado_next_edit_deadline"
         self._attr_icon = "mdi:text-box-edit"
@@ -354,7 +339,7 @@ class OcadoTotal(CoordinatorEntity[OcadoUpdateCoordinator], SensorEntity):
 
     entity_description = SensorEntityDescription(
         key                         = "ocado_last_total",
-        name                        = "Ocado Last Total",
+        translation_key             = "last_total",
         device_class                = SensorDeviceClass.MONETARY,
         native_unit_of_measurement  = "GBP",
         icon                        = "mdi:receipt-text",
@@ -414,7 +399,8 @@ class OcadoUpcoming(CoordinatorEntity, SensorEntity):
         self.device_id = "Ocado Deliveries"
         self._attr_device_info = OCADO_DELIVERY_DEVICE_DESCRIPTION
         self._attr_extra_state_attributes = {}
-        self._attr_name = "Ocado Upcoming Delivery"
+        self._attr_has_entity_name = True
+        self._attr_translation_key = "upcoming_delivery"
         self._attr_unique_id = "ocado_upcoming_delivery"
         self._globalid = "ocado_upcoming_delivery"
         self._attr_icon = "mdi:cart-outline"
@@ -496,7 +482,8 @@ class OcadoOrderList(CoordinatorEntity, SensorEntity):
         self.device_id = "Ocado Deliveries"
         self._attr_device_info = OCADO_DELIVERY_DEVICE_DESCRIPTION
         self._attr_extra_state_attributes = {}
-        self._attr_name = "Ocado Orders"
+        self._attr_has_entity_name = True
+        self._attr_translation_key = "orders"
         self._attr_unique_id = "ocado_orders"
         self._globalid = "ocado_orders"
         self._attr_icon = "mdi:cart-outline"
@@ -557,83 +544,3 @@ class OcadoOrderList(CoordinatorEntity, SensorEntity):
                 if next_attr is not None and hasattr(next_attr, "edit_deadline") and next_attr.edit_deadline < now:
                     _LOGGER.debug("Updating due to edit deadline passed")
                     self.async_write_ha_state()
-
-
-class OcadoBBDs(RestoreEntity, CoordinatorEntity, SensorEntity):
-    """This sensor returns the best before dates of the most recent delivery."""
-
-    # Disabled by default
-    _attr_entity_registry_enabled_default = False
-
-    def __init__(self, coordinator: OcadoUpdateCoordinator, day: str, context: Any = None,) -> None:
-        """Initialise the sensor."""
-        super().__init__(coordinator, context=context)
-        self.coordinator                = coordinator
-        self.device_id                  = "Ocado BBDs"
-        self._attr_device_info          = OCADO_BBD_DEVICE_DESCRIPTION
-        self._attr_extra_state_attributes    = {}
-        self._attr_name                 = f"Ocado Best Before {WEEKDAY_MAP[day].capitalize()}"
-        self._attr_unique_id            = f"ocado_bbd_{day}"
-        self._globalid                  = f"ocado_bbds_{day}"
-        self._attr_icon                 = "mdi:cart-outline"
-        self._attr_native_value                = None
-        self._day                       = day
-
-    async def async_added_to_hass(self) -> None:
-        """Handle entity which will be added."""
-        _LOGGER.debug("Running async_added_to_hass")
-        await super().async_added_to_hass()
-
-        if (old_state := await self.async_get_last_state()) is not None:
-            self._attr_native_value = old_state.state
-            self._attr_extra_state_attributes = dict(old_state.attributes)
-
-
-    @callback
-    def _handle_coordinator_update(self) -> None:
-        """Fetch the latest data from the coordinator."""
-        _LOGGER.debug("Handling coordinator update for %s", self.entity_id)
-
-        ocado_data = self.coordinator.data
-        if not ocado_data:
-            if self.entity_id is None:
-                _LOGGER.warning("Coordinator data is None for %s", self.entity_id)
-                self._attr_native_value = None
-                self._attr_icon = "mdi:help-circle"
-                self._attr_extra_state_attributes = {
-                    "updated"        : datetime.now(),
-                    "order_number"   : None,
-                    "date"           : None,
-                    "bbds"           : [],
-                }
-                return
-            return
-
-        now = datetime.now()
-        day_list = ocado_data.get("receipt")
-
-        if day_list is not None:
-            result = set_bbds(self, day_list, self._day, now)
-            _LOGGER.debug("Set_bbds returned %s", result)
-        else:
-            self._attr_native_value = None
-            self._attr_icon = "mdi:help-circle"
-            self._attr_extra_state_attributes = {
-                "updated"       : datetime.now(),
-                "order_number"  : None,
-                "date"          : None,
-                "bbds"          : None,
-            }
-        # Check if the attributes need updating
-        if self.entity_id is not None:
-            current = self.hass.states.get(self.entity_id)
-            new = self._attr_extra_state_attributes
-
-            if current is None:
-                self.async_write_ha_state()
-                return
-
-            old = current.attributes
-            if detect_attr_changes(new, old):
-                _LOGGER.debug("Updating due to new attributes")
-                self.async_write_ha_state()
