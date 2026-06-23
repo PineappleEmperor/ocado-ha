@@ -11,6 +11,9 @@ import imaplib
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
+from custom_components.ocado.const import EMPTY_ORDER
+from custom_components.ocado.coordinator import OcadoUpdateCoordinator
+from custom_components.ocado.sensor import OcadoOrderList
 from homeassistant.config_entries import ConfigEntryState
 from homeassistant.core import HomeAssistant
 
@@ -82,3 +85,16 @@ async def test_confirmation_email_populates_delivery_sensor(
 
     await hass.config_entries.async_unload(mock_config_entry.entry_id)
     await hass.async_block_till_done()
+
+
+async def test_orders_sensor_state_is_count(
+    hass: HomeAssistant, mock_config_entry
+) -> None:
+    """The orders sensor reports the number of orders as its state."""
+    coordinator = OcadoUpdateCoordinator(hass, mock_config_entry)
+    coordinator.data = {"orders": [EMPTY_ORDER, EMPTY_ORDER]}
+    entity = OcadoOrderList(coordinator)
+
+    entity._handle_coordinator_update()
+
+    assert entity.native_value == 2
