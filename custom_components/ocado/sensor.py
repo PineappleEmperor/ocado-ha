@@ -47,7 +47,7 @@ async def async_setup_entry(
     ]
 
     _LOGGER.debug("Adding sensors.")
-    async_add_entities(sensors, update_before_add=True)
+    async_add_entities(sensors)
     _LOGGER.debug("Sensors added.")
 
 
@@ -76,6 +76,7 @@ class OcadoVoucher(CoordinatorEntity, SensorEntity):
         """Add to HA."""
         _LOGGER.debug("Running async_added_to_hass")
         await super().async_added_to_hass()
+        self._handle_coordinator_update()
 
     @callback
     def _handle_coordinator_update(self) -> None:
@@ -148,6 +149,7 @@ class OcadoDelivery(CoordinatorEntity, SensorEntity):
         """Handle entity added to Home Assistant."""
         _LOGGER.debug("Running async_added_to_hass")
         await super().async_added_to_hass()
+        self._handle_coordinator_update()
 
     @callback
     def _handle_coordinator_update(self) -> None:
@@ -246,6 +248,7 @@ class OcadoEdit(CoordinatorEntity, SensorEntity):
         """Handle entity added to Home Assistant."""
         _LOGGER.debug("Running async_added_to_hass")
         await super().async_added_to_hass()
+        self._handle_coordinator_update()
 
     @callback
     def _handle_coordinator_update(self) -> None:
@@ -350,6 +353,11 @@ class OcadoTotal(CoordinatorEntity[OcadoUpdateCoordinator], SensorEntity):
         self._attr_device_info      = OCADO_DELIVERY_DEVICE_DESCRIPTION
         self._attr_extra_state_attributes: dict[str, Any] = {}
 
+    async def async_added_to_hass(self) -> None:
+        """Populate initial state from the loaded coordinator data."""
+        await super().async_added_to_hass()
+        self._handle_coordinator_update()
+
     def _set_total(self, order: OcadoOrder) -> None:
         """This function validates an order is in the future and sets the state and attributes if it is."""
         _LOGGER.debug("Setting total order")
@@ -407,6 +415,7 @@ class OcadoUpcoming(CoordinatorEntity, SensorEntity):
         """Handle entity added to Home Assistant."""
         _LOGGER.debug("Running async_added_to_hass")
         await super().async_added_to_hass()
+        self._handle_coordinator_update()
 
     @callback
     def _handle_coordinator_update(self) -> None:
@@ -490,6 +499,7 @@ class OcadoOrderList(CoordinatorEntity, SensorEntity):
         """Handle entity added to Home Assistant."""
         _LOGGER.debug("Running async_added_to_hass")
         await super().async_added_to_hass()
+        self._handle_coordinator_update()
 
     @callback
     def _handle_coordinator_update(self) -> None:
