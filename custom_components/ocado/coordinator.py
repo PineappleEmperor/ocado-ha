@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 import logging
 from typing import Any
 
@@ -95,7 +95,7 @@ class OcadoUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 _LOGGER.debug("No voucher email found.")
                 voucher             = None
             return {
-                    "updated"       : datetime.now(timezone.utc),
+                    "updated"       : datetime.now(UTC),
                     "message_ids"   : message_ids,
                     "next"          : next_order,
                     "upcoming"      : upcoming_order,

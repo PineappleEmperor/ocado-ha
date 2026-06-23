@@ -3,5 +3,4 @@ pytest-cov
 pytest-homeassistant-custom-component
 aiohttp
 python-dateutil
-pypdf
 BeautifulSoup4
