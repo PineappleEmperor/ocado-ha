@@ -28,15 +28,44 @@ jobs:
         run: |
           AHEAD=$(git rev-list --count origin/main..HEAD)
           echo "ahead=$AHEAD" >> $GITHUB_OUTPUT
-          BODY=$(git log origin/main..HEAD --pretty=format:"  - %s" --reverse)
-          if [ -z "$BODY" ]; then
-            BODY="  - (no commits ahead of main)"
-          fi
-          echo "body<<EOF" >> $GITHUB_OUTPUT
-          echo "$BODY" >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
 
           SUBJECTS=$(git log origin/main..HEAD --pretty=format:"%s" --reverse)
+
+          # Group the body by commit type so release-drafter's $BODY reads as a
+          # sorted mini-changelog under the PR's category (bold emoji sub-heads).
+          classify() {
+            printf '%s' "$1" | grep -qiE '^[a-z]+(\([^)]*\))?!:' && { echo breaking; return; }
+            printf '%s' "$1" | grep -qiE '^feat(\([^)]*\))?:'    && { echo feat; return; }
+            printf '%s' "$1" | grep -qiE '^fix(\([^)]*\))?:'     && { echo fix; return; }
+            printf '%s' "$1" | grep -qiE '^(chore|docs|refactor|perf|test|build|ci|style)(\([^)]*\))?:' && { echo maint; return; }
+            echo other
+          }
+          desc() { printf '%s' "$1" | sed -E 's/^[a-zA-Z]+(\([^)]*\))?!?:[[:space:]]*//'; }
+
+          BREAKING=""; FEAT=""; FIX=""; MAINT=""; OTHER=""
+          while IFS= read -r s; do
+            [ -z "$s" ] && continue
+            d=$(desc "$s")
+            case "$(classify "$s")" in
+              breaking) BREAKING="${BREAKING}  - ${d}"$'\n' ;;
+              feat)     FEAT="${FEAT}  - ${d}"$'\n' ;;
+              fix)      FIX="${FIX}  - ${d}"$'\n' ;;
+              maint)    MAINT="${MAINT}  - ${d}"$'\n' ;;
+              *)        OTHER="${OTHER}  - ${d}"$'\n' ;;
+            esac
+          done <<< "$SUBJECTS"
+
+          BODY=""
+          [ -n "$BREAKING" ] && BODY="${BODY}  **🚨 Breaking**"$'\n'"${BREAKING}"
+          [ -n "$FEAT" ]     && BODY="${BODY}  **🚀 Features**"$'\n'"${FEAT}"
+          [ -n "$FIX" ]      && BODY="${BODY}  **🐛 Fixes**"$'\n'"${FIX}"
+          [ -n "$MAINT" ]    && BODY="${BODY}  **🧰 Maintenance**"$'\n'"${MAINT}"
+          [ -n "$OTHER" ]    && BODY="${BODY}  **📦 Other**"$'\n'"${OTHER}"
+          [ -z "$BODY" ] && BODY="  - (no commits ahead of main)"
+          echo "body<<EOF" >> $GITHUB_OUTPUT
+          printf '%s' "$BODY" >> $GITHUB_OUTPUT
+          printf '\n' >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
 
           TITLE=$(echo "$SUBJECTS" | grep -iE "^feat(\(.+\))?!?:" | tail -1)
           if [ -z "$TITLE" ]; then

@@ -36,8 +36,26 @@ categories:
       - 'bug'
   - title: '🧰 Maintenance'
     label: 'chore'
-change-template: '- $TITLE @$AUTHOR (#$NUMBER)'
+change-template: |-
+  - $TITLE @$AUTHOR (#$NUMBER)
+  $BODY
 change-title-escapes: '\<*_&' # You can add # and @ to disable mentions, and add ` to disable code blocks.
+# release-drafter has no per-category change-template, so $BODY is inlined for ALL PRs —
+# including Dependabot's. Human PRs carry create-dev-pr's grouped mini-changelog; these
+# bounded replacers scrub Dependabot's body fluff (folds, compat badge, command block) so
+# it doesn't leak into the notes. All patterns are bounded (no end-of-string anchor) so
+# they can't bleed across concatenated PR bodies. Revisit if Dependabot changes its format.
+replacers:
+  - search: '/<details>[\s\S]*?<\/details>\s*/g'
+    replace: ''
+  - search: '/\[!\[Dependabot compatibility score\][^\n]*\n?/g'
+    replace: ''
+  - search: '/Dependabot will resolve[^\n]*\n?/g'
+    replace: ''
+  - search: '/\/\/: # \(dependabot-start\)[\s\S]*?\/\/: # \(dependabot-end\)\s*/g'
+    replace: ''
+  - search: '/<br\s*\/?>\s*/g'
+    replace: ''
 version-resolver:
   major:
     labels:
