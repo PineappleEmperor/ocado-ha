@@ -17,3 +17,26 @@ jobs:
       - uses: release-drafter/release-drafter/autolabeler@v7
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # The autolabeler only *adds*. When a PR's title flips type mid-life
+      # (fix -> feat), the old type label lingers and the PR lists under two
+      # release-drafter categories. Remove the superseded type labels, keyed
+      # on the same title the autolabeler uses (removes only -> cannot flap).
+      - name: Remove superseded type labels
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          TITLE: ${{ github.event.pull_request.title }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          if   printf '%s' "$TITLE" | grep -qiE '^[a-z]+(\([^)]*\))?!:';        then WIN=xfeat
+          elif printf '%s' "$TITLE" | grep -qiE '^(chore|docs)(\([^)]*\))?:';   then WIN=chore
+          elif printf '%s' "$TITLE" | grep -qiE '^fix(\([^)]*\))?:';            then WIN=fix
+          elif printf '%s' "$TITLE" | grep -qiE '^(feat|feature)(\([^)]*\))?:'; then WIN=feature
+          else exit 0  # title maps to no managed label; leave labels untouched
+          fi
+          CURRENT=$(gh pr view "$PR" --json labels --jq '.labels[].name')
+          for L in xfeat feature fix chore; do
+            [ "$L" = "$WIN" ] && continue
+            printf '%s\n' "$CURRENT" | grep -qx "$L" && gh pr edit "$PR" --remove-label "$L"
+          done
