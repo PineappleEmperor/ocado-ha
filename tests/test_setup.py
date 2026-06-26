@@ -15,6 +15,8 @@ EXPECTED_UNIQUE_IDS = {
     "ocado_last_total",
     "ocado_upcoming_delivery",
     "ocado_orders",
+    "ocado_deliveries_calendar",
+    "ocado_edit_deadlines_calendar",
 }
 
 
