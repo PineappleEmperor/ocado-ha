@@ -73,7 +73,7 @@ class OcadoCalendar(CoordinatorEntity[OcadoUpdateCoordinator], CalendarEntity):
 class OcadoDeliveryCalendar(OcadoCalendar):
     """A calendar of Ocado delivery windows."""
 
-    _attr_translation_key = "deliveries"
+    _attr_name = None
     _attr_icon = "mdi:truck-delivery"
 
     def __init__(self, coordinator: OcadoUpdateCoordinator) -> None:

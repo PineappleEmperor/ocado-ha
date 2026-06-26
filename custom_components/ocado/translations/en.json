@@ -1,7 +1,6 @@
 {
     "entity": {
       "calendar": {
-        "deliveries": { "name": "Deliveries" },
         "edit_deadlines": { "name": "Edit Deadlines" }
       },
       "sensor": {
