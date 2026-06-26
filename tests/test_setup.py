@@ -32,6 +32,12 @@ async def test_setup_entry_loads_and_creates_entities(
     )
     assert {entity.unique_id for entity in entities} == EXPECTED_UNIQUE_IDS
 
+    by_unique_id = {entity.unique_id: entity for entity in entities}
+    assert (
+        by_unique_id["ocado_deliveries_calendar"].entity_id
+        == "calendar.ocado_uk_deliveries"
+    )
+
 
 async def test_unload_entry(hass: HomeAssistant, init_integration) -> None:
     """Unloading a loaded config entry returns it to NOT_LOADED."""

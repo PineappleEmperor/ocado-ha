@@ -73,13 +73,16 @@ class OcadoCalendar(CoordinatorEntity[OcadoUpdateCoordinator], CalendarEntity):
 class OcadoDeliveryCalendar(OcadoCalendar):
     """A calendar of Ocado delivery windows."""
 
-    _attr_name = None
-    _attr_icon = "mdi:truck-delivery"
+    _attr_translation_key = "deliveries"
+    _attr_icon = "mdi:calendar-check"
 
     def __init__(self, coordinator: OcadoUpdateCoordinator) -> None:
         """Initialise the delivery calendar."""
         super().__init__(coordinator)
         self._attr_unique_id = "ocado_deliveries_calendar"
+        # Device name already ends in "Deliveries"; pin the entity_id so it
+        # doesn't auto-generate as calendar.ocado_uk_deliveries_deliveries.
+        self.entity_id = "calendar.ocado_uk_deliveries"
 
     def _build_events(self) -> list[CalendarEvent]:
         """One event per order delivery window, skipping orders without one."""
