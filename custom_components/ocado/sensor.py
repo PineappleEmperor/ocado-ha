@@ -144,6 +144,7 @@ class OcadoDelivery(CoordinatorEntity, SensorEntity):
         self._attr_unique_id = "ocado_next_delivery"
         self._globalid = "ocado_next_delivery"
         self._attr_icon = "mdi:cart-outline"
+        self._attr_device_class = SensorDeviceClass.TIMESTAMP
         self._attr_native_value = None
 
     async def async_added_to_hass(self) -> None:
@@ -243,6 +244,7 @@ class OcadoEdit(CoordinatorEntity, SensorEntity):
         self._attr_unique_id = "ocado_next_edit_deadline"
         self._globalid = "ocado_next_edit_deadline"
         self._attr_icon = "mdi:text-box-edit"
+        self._attr_device_class = SensorDeviceClass.TIMESTAMP
         self._attr_native_value = None
 
     async def async_added_to_hass(self) -> None:
@@ -410,6 +412,7 @@ class OcadoUpcoming(CoordinatorEntity, SensorEntity):
         self._attr_unique_id = "ocado_upcoming_delivery"
         self._globalid = "ocado_upcoming_delivery"
         self._attr_icon = "mdi:cart-outline"
+        self._attr_device_class = SensorDeviceClass.TIMESTAMP
         self._attr_native_value = None
 
     async def async_added_to_hass(self) -> None:
