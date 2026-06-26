@@ -10,8 +10,16 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from homeassistant.util import dt as dt_util
 
-from .const import OCADO_DELIVERY_DEVICE_DESCRIPTION, OcadoOrder
+from .const import (
+    CONF_DELIVERY_TITLE,
+    CONF_EDIT_TITLE,
+    DEFAULT_DELIVERY_TITLE,
+    DEFAULT_EDIT_TITLE,
+    OCADO_DELIVERY_DEVICE_DESCRIPTION,
+    OcadoOrder,
+)
 from .coordinator import OcadoConfigEntry, OcadoUpdateCoordinator
+from .utils import delivery_title_fields, edit_title_fields, render_event_title
 
 PARALLEL_UPDATES = 0
 
@@ -45,6 +53,11 @@ class OcadoCalendar(CoordinatorEntity[OcadoUpdateCoordinator], CalendarEntity):
         data = self.coordinator.data
         orders = data.get("orders") if data else None
         return orders or []
+
+    def _title_format(self, key: str, default: str) -> str:
+        """Return the configured event-title template, or the default."""
+        entry = self.coordinator.config_entry
+        return entry.options.get(key, default) if entry else default
 
     def _build_events(self) -> list[CalendarEvent]:
         """Build the calendar events from the current orders. Overridden per calendar."""
@@ -86,6 +99,7 @@ class OcadoDeliveryCalendar(OcadoCalendar):
 
     def _build_events(self) -> list[CalendarEvent]:
         """One event per order delivery window, skipping orders without one."""
+        title_format = self._title_format(CONF_DELIVERY_TITLE, DEFAULT_DELIVERY_TITLE)
         events: list[CalendarEvent] = []
         for order in self._orders():
             start, end = order.delivery_datetime, order.delivery_window_end
@@ -99,7 +113,9 @@ class OcadoDeliveryCalendar(OcadoCalendar):
                 CalendarEvent(
                     start=start,
                     end=end,
-                    summary=f"Ocado delivery #{number}" if number else "Ocado delivery",
+                    summary=render_event_title(
+                        title_format, delivery_title_fields(order), DEFAULT_DELIVERY_TITLE
+                    ),
                     uid=f"ocado-delivery-{number}" if number else None,
                 )
             )
@@ -119,6 +135,7 @@ class OcadoEditCalendar(OcadoCalendar):
 
     def _build_events(self) -> list[CalendarEvent]:
         """A short marker event at each order's edit deadline."""
+        title_format = self._title_format(CONF_EDIT_TITLE, DEFAULT_EDIT_TITLE)
         events: list[CalendarEvent] = []
         for order in self._orders():
             deadline = order.edit_datetime
@@ -130,8 +147,8 @@ class OcadoEditCalendar(OcadoCalendar):
                 CalendarEvent(
                     start=start,
                     end=start + EDIT_MARKER_DURATION,
-                    summary=(
-                        f"Amend by — order #{number}" if number else "Ocado amend deadline"
+                    summary=render_event_title(
+                        title_format, edit_title_fields(order), DEFAULT_EDIT_TITLE
                     ),
                     uid=f"ocado-edit-{number}" if number else None,
                 )

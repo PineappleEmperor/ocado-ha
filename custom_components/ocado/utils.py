@@ -26,6 +26,7 @@ from .const import (
     OCADO_SMARTPASS_SUBJECT,
     OCADO_SUBJECT_DICT,
     OCADO_VOUCHER_SUBJECT,
+    ORDER_NUMBER_SHORT_LEN,
     REGEX_APM_TIME,
     REGEX_DATE,
     REGEX_DAY_FULL,
@@ -483,6 +484,51 @@ def get_window(delivery_datetime: datetime, delivery_window_end: datetime) -> st
     start = delivery_datetime.strftime("%H:%M")
     end = delivery_window_end.strftime("%H:%M")
     return start + " - " + end
+
+
+def _order_number_fields(order: OcadoOrder) -> dict[str, str]:
+    """Full and shortened order-number token values."""
+    number = order.order_number or ""
+    return {
+        "order_number": number,
+        "order_number_short": number[-ORDER_NUMBER_SHORT_LEN:],
+    }
+
+
+def delivery_title_fields(order: OcadoOrder) -> dict[str, str]:
+    """Token values available to the delivery event title."""
+    fields = _order_number_fields(order)
+    start, end = order.delivery_datetime, order.delivery_window_end
+    fields["total"] = order.estimated_total or ""
+    fields["date"] = dt_util.as_local(start).strftime("%d/%m/%Y") if start else ""
+    fields["window"] = get_window(start, end) if start and end else ""
+    return fields
+
+
+def edit_title_fields(order: OcadoOrder) -> dict[str, str]:
+    """Token values available to the edit-deadline event title."""
+    fields = _order_number_fields(order)
+    deadline = order.edit_datetime
+    fields["deadline"] = (
+        dt_util.as_local(deadline).strftime("%d/%m/%Y %H:%M") if deadline else ""
+    )
+    return fields
+
+
+def render_event_title(fmt: str, fields: dict[str, str], default: str) -> str:
+    """Format an event title, falling back to the default on a bad template."""
+    try:
+        return fmt.format(**fields)
+    except (KeyError, IndexError, ValueError):
+        return default.format(**fields)
+
+
+def validate_title_template(fmt: str, tokens: tuple[str, ...]) -> None:
+    """Raise ValueError if a title template uses unknown tokens or bad braces."""
+    try:
+        fmt.format(**dict.fromkeys(tokens, ""))
+    except (KeyError, IndexError, ValueError) as err:
+        raise ValueError(f"Invalid title template: {err}") from err
 
 
 def sort_orders(orders: list[OcadoOrder]) -> tuple[OcadoOrder, OcadoOrder]:
