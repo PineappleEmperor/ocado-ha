@@ -64,18 +64,26 @@ OCADO_ORDER_LIST_DESCRIPTION = SensorEntityDescription(
     name                        = "Ocado Orders",
 )
 
+CONF_DELIVERY_TITLE = 'delivery_title'
+CONF_EDIT_TITLE     = 'edit_title'
 CONF_IMAP_DAYS      = 'imap_days'
 CONF_IMAP_FOLDER    = 'imap_folder'
 CONF_IMAP_PORT      = 'imap_port'
 CONF_IMAP_SERVER    = 'imap_host'
 CONF_IMAP_SSL       = 'imap_ssl'
 
+DEFAULT_DELIVERY_TITLE = "Ocado delivery #{order_number}"
+DEFAULT_EDIT_TITLE  = "Amend by — order #{order_number}"
 DEFAULT_IMAP_DAYS   = 31
 DEFAULT_IMAP_FOLDER = 'INBOX'
 DEFAULT_IMAP_PORT   = 993
 DEFAULT_IMAP_SERVER = 'imap.gmail.com'
 DEFAULT_IMAP_SSL    = 'ssl'
 DEFAULT_SCAN_INTERVAL = 600
+
+ORDER_NUMBER_SHORT_LEN = 5
+DELIVERY_TITLE_TOKENS = ("order_number", "order_number_short", "total", "date", "window")
+EDIT_TITLE_TOKENS = ("order_number", "order_number_short", "deadline")
 
 DEVICE_CLASS        = "ocado_deliveries"
 

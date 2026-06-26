@@ -67,7 +67,13 @@
           "description": "Configure options.",
           "data": {
             "scan_interval": "Scan interval (seconds)",
-            "imap_days": "Number of days of emails to retrieve"
+            "imap_days": "Number of days of emails to retrieve",
+            "delivery_title": "Delivery event title",
+            "edit_title": "Edit-deadline event title"
+          },
+          "data_description": {
+            "delivery_title": "Calendar event title template. Tokens (wrap each in curly braces): order_number, order_number_short, total, date, window.",
+            "edit_title": "Calendar event title template. Tokens (wrap each in curly braces): order_number, order_number_short, deadline."
           }
         }
       }

@@ -21,19 +21,26 @@ from homeassistant.exceptions import HomeAssistantError
 import homeassistant.helpers.config_validation as cv
 
 from .const import (
+    CONF_DELIVERY_TITLE,
+    CONF_EDIT_TITLE,
     CONF_IMAP_DAYS,
     CONF_IMAP_FOLDER,
     CONF_IMAP_PORT,
     CONF_IMAP_SERVER,
+    DEFAULT_DELIVERY_TITLE,
+    DEFAULT_EDIT_TITLE,
     DEFAULT_IMAP_DAYS,
     DEFAULT_IMAP_FOLDER,
     DEFAULT_IMAP_PORT,
     DEFAULT_IMAP_SERVER,
     DEFAULT_SCAN_INTERVAL,
+    DELIVERY_TITLE_TOKENS,
     DOMAIN,
+    EDIT_TITLE_TOKENS,
     MIN_IMAP_DAYS,
     MIN_SCAN_INTERVAL,
 )
+from .utils import validate_title_template
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -102,6 +109,8 @@ async def _validate_options(hass: HomeAssistant, data: dict[str, Any]) -> dict[s
         raise ValueError(f"Scan interval is too low, minimum is 60 {data[CONF_SCAN_INTERVAL]}")
     if data[CONF_IMAP_DAYS] < 7:
         raise ValueError(f"Number of days to fetch is too low, minimum is 7 {data[CONF_IMAP_DAYS]}")
+    validate_title_template(data[CONF_DELIVERY_TITLE], DELIVERY_TITLE_TOKENS)
+    validate_title_template(data[CONF_EDIT_TITLE], EDIT_TITLE_TOKENS)
     return {"title": "Ocado UK"}
     # return {"title": f"Ocado Integration - {data[CONF_EMAIL]}:{data[CONF_IMAP_SERVER]}"}
 
@@ -304,6 +313,14 @@ class OcadoOptionsFlowHandler(OptionsFlow):
                     CONF_IMAP_DAYS,
                     default=self.options.get(CONF_IMAP_DAYS, DEFAULT_IMAP_DAYS),
                 ): (vol.All(vol.Coerce(int), vol.Clamp(min=MIN_IMAP_DAYS))),
+                vol.Optional(
+                    CONF_DELIVERY_TITLE,
+                    default=self.options.get(CONF_DELIVERY_TITLE, DEFAULT_DELIVERY_TITLE),
+                ): cv.string,
+                vol.Optional(
+                    CONF_EDIT_TITLE,
+                    default=self.options.get(CONF_EDIT_TITLE, DEFAULT_EDIT_TITLE),
+                ): cv.string,
             }
         )
 
