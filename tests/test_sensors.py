@@ -16,6 +16,7 @@ from custom_components.ocado.coordinator import OcadoUpdateCoordinator
 from custom_components.ocado.sensor import OcadoOrderList
 from homeassistant.config_entries import ConfigEntryState
 from homeassistant.core import HomeAssistant
+from homeassistant.util import dt as dt_util
 
 CONFIRMATION_TEMPLATE = (Path(__file__).parent / "fixtures" / "basic.eml").read_text()
 
@@ -78,7 +79,10 @@ async def test_confirmation_email_populates_delivery_sensor(
 
     state = hass.states.get("sensor.ocado_uk_deliveries_next_delivery")
     assert state is not None
-    assert state.state == delivery.isoformat()
+    assert state.attributes["device_class"] == "timestamp"
+    parsed = dt_util.parse_datetime(state.state)
+    assert parsed is not None
+    assert parsed.date() == delivery
     assert state.attributes["order_number"] == "1234567891"
     assert state.attributes["estimated_total"] == "63.50"
     assert state.attributes["delivery_window"] == "10:00 - 11:00"

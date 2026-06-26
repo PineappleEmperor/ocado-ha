@@ -14,6 +14,8 @@ from typing import Any
 from bs4 import BeautifulSoup
 from dateutil.parser import parse
 
+from homeassistant.util import dt as dt_util
+
 from .const import (
     EMPTY_ORDER,
     MARKETING_OCADO_ADDRESS,
@@ -518,7 +520,7 @@ def set_order(self, order: OcadoOrder, now: datetime) -> bool:
         today = now.date()
         if order.delivery_window_end >= now:
             days_until_next_delivery = (order.delivery_datetime.date() - today).days
-            self._attr_native_value = order.delivery_datetime.date()
+            self._attr_native_value = dt_util.as_local(order.delivery_datetime)
             self._attr_icon = iconify(days_until_next_delivery)
             self._attr_extra_state_attributes = {
                 "updated"               : order.updated,
@@ -539,7 +541,7 @@ def set_edit_order(self, order: OcadoOrder, now: datetime) -> bool:
         today = now.date()
         if order.edit_datetime >= now:
             days_until_deadline = (order.edit_datetime.date() - today).days
-            self._attr_native_value = order.edit_datetime
+            self._attr_native_value = dt_util.as_local(order.edit_datetime)
             self._attr_icon = iconify(days_until_deadline)
             attributes = {
                 "updated"               : order.updated,
