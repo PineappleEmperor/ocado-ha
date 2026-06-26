@@ -42,9 +42,16 @@ jobs:
           }
           desc() { printf '%s' "$1" | sed -E 's/^[a-zA-Z]+(\([^)]*\))?!?:[[:space:]]*//'; }
 
+          # The manifest version-bump commit is release plumbing, not a changelog
+          # entry. Skip it so it doesn't spawn a 🧰 Maintenance section of its own.
+          is_version_bump() {
+            printf '%s' "$1" | grep -qiE '^[a-z]+(\([^)]*\))?:[[:space:]]*bump\b.*(\bversion\b|\bmanifest\b|\bto v?[0-9]+\.[0-9]+)'
+          }
+
           BREAKING=""; FEAT=""; FIX=""; MAINT=""; OTHER=""
           while IFS= read -r s; do
             [ -z "$s" ] && continue
+            is_version_bump "$s" && continue
             d=$(desc "$s")
             case "$(classify "$s")" in
               breaking) BREAKING="${BREAKING}  - ${d}"$'\n' ;;
