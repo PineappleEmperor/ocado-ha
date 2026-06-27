@@ -39,9 +39,9 @@ rules:
 
   # Gold
   entity-translations: done
-  entity-device-class: todo
+  entity-device-class: done
   devices: done
-  entity-category: todo
+  entity-category: done
   entity-disabled-by-default: done
   discovery:
     status: exempt

@@ -15,10 +15,10 @@ from .const import (
     CONF_EDIT_TITLE,
     DEFAULT_DELIVERY_TITLE,
     DEFAULT_EDIT_TITLE,
-    OCADO_DELIVERY_DEVICE_DESCRIPTION,
     OcadoOrder,
 )
 from .coordinator import OcadoConfigEntry, OcadoUpdateCoordinator
+from .entity import ocado_device_info
 from .utils import delivery_title_fields, edit_title_fields, render_event_title
 
 PARALLEL_UPDATES = 0
@@ -46,7 +46,7 @@ class OcadoCalendar(CoordinatorEntity[OcadoUpdateCoordinator], CalendarEntity):
     def __init__(self, coordinator: OcadoUpdateCoordinator) -> None:
         """Initialise the calendar."""
         super().__init__(coordinator)
-        self._attr_device_info = OCADO_DELIVERY_DEVICE_DESCRIPTION
+        self._attr_device_info = ocado_device_info(coordinator.version)
 
     def _orders(self) -> list[OcadoOrder]:
         """Return the current order list, or an empty list when there's no data."""

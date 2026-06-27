@@ -11,6 +11,7 @@ from homeassistant.const import CONF_EMAIL, CONF_PASSWORD, CONF_SCAN_INTERVAL
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryAuthFailed
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
+from homeassistant.loader import IntegrationNotLoaded, async_get_loaded_integration
 
 from .const import (
     CONF_IMAP_DAYS,
@@ -44,6 +45,13 @@ class OcadoUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         # Set variables from options
         self.scan_interval  : int  = config_entry.options.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)
         self.imap_days      : int  = config_entry.options.get(CONF_IMAP_DAYS, DEFAULT_IMAP_DAYS)
+
+        # Surface the integration version as the device firmware version.
+        try:
+            version = async_get_loaded_integration(hass, DOMAIN).version
+            self.version: str = str(version) if version else "unknown"
+        except IntegrationNotLoaded:
+            self.version = "unknown"
 
         super().__init__(
             hass,

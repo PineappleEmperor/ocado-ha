@@ -6,7 +6,6 @@ from datetime import date, datetime
 import json
 
 from homeassistant.components.sensor import SensorDeviceClass, SensorEntityDescription
-from homeassistant.helpers.device_registry import DeviceInfo
 
 DOMAIN                          = "ocado"
 
@@ -33,13 +32,6 @@ OCADO_SUBJECT_DICT = {
     OCADO_NEW_TOTAL_SUBJECT:      "new_total",
     OCADO_NEW_NEW_TOTAL_SUBJECT:  "new_total",
 }
-OCADO_DELIVERY_DEVICE_DESCRIPTION = DeviceInfo(
-    identifiers     = {(DOMAIN, "deliveries")},
-    name            = "Ocado (UK) Deliveries",
-    manufacturer    = "Ocado-ha",
-    model           = "Delivery Sensor",
-    sw_version      = "1.0",
-)
 OCADO_DELIVERY_DESCRIPTION = SensorEntityDescription(
     key                         = "ocado_next_delivery",
     name                        = "Ocado Next Delivery",
