@@ -93,14 +93,10 @@ def _validate_input(hass: HomeAssistant, data: dict[str, Any]) -> dict[str, Any]
         server.close()
         server.logout()
     except Exception as err:
-        _LOGGER.exception("Failed to select imap folder or check")
         raise CannotConnect from err
-    _LOGGER.debug("Checking the check: %s", check)
     if not check or check[0] != 'OK':
-        _LOGGER.error("Check failed")
         raise CannotConnect("IMAP check failed")
     return {"title": "Ocado UK"}
-    # return {"title": f"Ocado Integration - {data[CONF_EMAIL]}:{data[CONF_IMAP_SERVER]}"}
 
 
 async def _validate_options(hass: HomeAssistant, data: dict[str, Any]) -> dict[str, Any]:
@@ -112,7 +108,6 @@ async def _validate_options(hass: HomeAssistant, data: dict[str, Any]) -> dict[s
     validate_title_template(data[CONF_DELIVERY_TITLE], DELIVERY_TITLE_TOKENS)
     validate_title_template(data[CONF_EDIT_TITLE], EDIT_TITLE_TOKENS)
     return {"title": "Ocado UK"}
-    # return {"title": f"Ocado Integration - {data[CONF_EMAIL]}:{data[CONF_IMAP_SERVER]}"}
 
 
 class OcadoConfigFlowHandler(ConfigFlow, domain=DOMAIN):
@@ -120,17 +115,6 @@ class OcadoConfigFlowHandler(ConfigFlow, domain=DOMAIN):
 
     VERSION = 1
     MINOR_VERSION = 0
-    _input_data: dict[str, Any]
-    _title: str
-
-    def __init__(self) -> None:
-        """Initialize the flow."""
-        self._email         : str | None = None
-        self._password      : str | None = None
-        self._imap_server   : str | None = None
-        self._imap_port     : int | None = None
-        self._imap_folder   : str | None = None
-        self._error         : str | None = None
 
     @staticmethod
     @callback
@@ -158,45 +142,14 @@ class OcadoConfigFlowHandler(ConfigFlow, domain=DOMAIN):
                 _LOGGER.exception("Unexpected exception")
                 errors["base"] = "unknown"
             else:
-                # Validation was successful, so proceed to the next step.
-                # Set the unique ID
                 title = info.get("title") or "Ocado UK"
-                _LOGGER.debug("Setting unique ID")
                 await self.async_set_unique_id(title)
                 self._abort_if_unique_id_configured()
-
-                # Set our title variable here for use later
-                self._title = title
-                # save the input data for use later
-                self._input_data = user_input
-
-                # Call the next step
-                # return await self.async_step_settings()
-                return self.async_create_entry(title=self._title, data=self._input_data)
+                return self.async_create_entry(title=title, data=user_input)
 
         # Show initial form.
         return self.async_show_form(
             step_id="user",
-            data_schema=OCADO_SETTINGS_SCHEMA,
-            errors=errors,
-            last_step=True,  # Adding last_step True/False decides whether form shows Next or Submit buttons
-        )
-
-    async def async_step_settings(
-        self, user_input: dict[str, Any] | None = None
-    ) -> ConfigFlowResult:
-        """Handle the second step. Creates config entry."""
-
-        errors: dict[str, str] = {}
-
-        if self._input_data is not None:
-            # if "base" not in errors:
-            if user_input is not None:
-                self._input_data.update(user_input)
-            return self.async_create_entry(title=self._title, data=self._input_data)
-
-        return self.async_show_form(
-            step_id="user",# "settings"
             data_schema=OCADO_SETTINGS_SCHEMA,
             errors=errors,
             last_step=True,
@@ -228,7 +181,7 @@ class OcadoConfigFlowHandler(ConfigFlow, domain=DOMAIN):
                 _LOGGER.exception("Unexpected exception")
                 errors["base"] = "unknown"
             else:
-                _LOGGER.info(
+                _LOGGER.debug(
                     "Configuration updated for entry: %s", existing_entry.entry_id
                 )
                 return self.async_update_reload_and_abort(
