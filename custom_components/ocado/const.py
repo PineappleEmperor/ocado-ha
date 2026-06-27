@@ -5,8 +5,6 @@ from dataclasses import dataclass, field
 from datetime import date, datetime
 import json
 
-from homeassistant.components.sensor import SensorDeviceClass, SensorEntityDescription
-
 DOMAIN                          = "ocado"
 
 
@@ -32,30 +30,6 @@ OCADO_SUBJECT_DICT = {
     OCADO_NEW_TOTAL_SUBJECT:      "new_total",
     OCADO_NEW_NEW_TOTAL_SUBJECT:  "new_total",
 }
-OCADO_DELIVERY_DESCRIPTION = SensorEntityDescription(
-    key                         = "ocado_next_delivery",
-    name                        = "Ocado Next Delivery",
-)
-OCADO_EDIT_DESCRIPTION = SensorEntityDescription(
-    key                         = "ocado_next_edit_deadline",
-    name                        = "Ocado Next Edit Deadline",
-)
-OCADO_TOTAL_DESCRIPTION = SensorEntityDescription(
-    key                         = "ocado_last_total",
-    name                        = "Ocado Last Total",
-    device_class                = SensorDeviceClass.MONETARY,
-    native_unit_of_measurement  = "GBP",
-    icon                        = "mdi:receipt-text",
-)
-OCADO_UPCOMING_DESCRIPTION = SensorEntityDescription(
-    key                         = "ocado_upcoming_delivery",
-    name                        = "Ocado Upcoming Delivery",
-)
-OCADO_ORDER_LIST_DESCRIPTION = SensorEntityDescription(
-    key                         = "ocado_orders",
-    name                        = "Ocado Orders",
-)
-
 CONF_DELIVERY_TITLE = 'delivery_title'
 CONF_EDIT_TITLE     = 'edit_title'
 CONF_IMAP_DAYS      = 'imap_days'
@@ -76,8 +50,6 @@ DEFAULT_SCAN_INTERVAL = 600
 ORDER_NUMBER_SHORT_LEN = 5
 DELIVERY_TITLE_TOKENS = ("order_number", "order_number_short", "total", "date", "window")
 EDIT_TITLE_TOKENS = ("order_number", "order_number_short", "deadline")
-
-DEVICE_CLASS        = "ocado_deliveries"
 
 EMAIL_ATTR_FROM     = 'from'
 EMAIL_ATTR_SUBJECT  = 'subject'
