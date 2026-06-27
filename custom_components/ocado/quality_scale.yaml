@@ -57,7 +57,7 @@ rules:
   discovery-update-info:
     status: exempt
     comment: No discovery, so there is no discovery info to update.
-  repair-issues: todo
+  repair-issues: done
   docs-use-cases: todo
   docs-supported-devices:
     status: exempt

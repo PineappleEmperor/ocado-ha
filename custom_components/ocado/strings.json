@@ -1,4 +1,10 @@
 {
+    "issues": {
+      "refresh_failing": {
+        "title": "Ocado data is not refreshing",
+        "description": "Home Assistant has been unable to refresh your Ocado data for {failures} consecutive attempts. The most recent error was: {error}.\n\nYour last known delivery details are still shown. This usually clears itself once your mail server is reachable again. If it persists, Ocado may have changed their email format — please report it on the integration's issue tracker."
+      }
+    },
     "entity": {
       "calendar": {
         "deliveries": { "name": "Deliveries" },

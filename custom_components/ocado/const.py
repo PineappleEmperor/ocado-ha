@@ -90,6 +90,9 @@ MIN_SCAN_INTERVAL   = 60
 # Consecutive failed polls tolerated (cached data kept, sensors stay available)
 # before the log escalates from debug to warning. ~1 hour at the default poll.
 FAILURES_BEFORE_WARNING = 6
+# Consecutive failed polls before a user-facing repair issue is raised. ~2 hours
+# at the default poll. A quiet inbox is a success and never counts toward this.
+FAILURES_BEFORE_REPAIR = 12
 
 REGEX_EDIT_UNTIL    = r"(?:You\scan\sedit\sthis\sorder\suntil:?\s)"
 
