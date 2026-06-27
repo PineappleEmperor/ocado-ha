@@ -87,7 +87,6 @@ class OcadoDeliveryCalendar(OcadoCalendar):
     """A calendar of Ocado delivery windows."""
 
     _attr_translation_key = "deliveries"
-    _attr_icon = "mdi:calendar-check"
 
     def __init__(self, coordinator: OcadoUpdateCoordinator) -> None:
         """Initialise the delivery calendar."""
@@ -126,7 +125,6 @@ class OcadoEditCalendar(OcadoCalendar):
     """A calendar of Ocado order amend-by deadlines."""
 
     _attr_translation_key = "edit_deadlines"
-    _attr_icon = "mdi:calendar-edit"
 
     def __init__(self, coordinator: OcadoUpdateCoordinator) -> None:
         """Initialise the edit-deadline calendar."""

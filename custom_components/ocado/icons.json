@@ -1,0 +1,23 @@
+{
+  "entity": {
+    "calendar": {
+      "deliveries": {
+        "default": "mdi:calendar-check"
+      },
+      "edit_deadlines": {
+        "default": "mdi:calendar-edit"
+      }
+    },
+    "sensor": {
+      "last_total": {
+        "default": "mdi:receipt-text"
+      },
+      "latest_voucher": {
+        "default": "mdi:ticket-percent"
+      },
+      "orders": {
+        "default": "mdi:clipboard-list"
+      }
+    }
+  }
+}

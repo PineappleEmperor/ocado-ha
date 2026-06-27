@@ -15,6 +15,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.util import dt as dt_util
 
+from .const import OcadoOrder
 from .coordinator import OcadoConfigEntry
 from .entity import OcadoEntity
 from .utils import (
@@ -67,7 +68,7 @@ class OcadoDelivery(OcadoEntity, SensorEntity):
     _attr_unique_id = "ocado_next_delivery"
     _attr_device_class = SensorDeviceClass.TIMESTAMP
 
-    def _order(self):
+    def _order(self) -> OcadoOrder | None:
         """Return the order this sensor currently reflects, if any."""
         return active_delivery(self.coordinator.data, datetime.now())
 
@@ -100,7 +101,7 @@ class OcadoEdit(OcadoEntity, SensorEntity):
     _attr_unique_id = "ocado_next_edit_deadline"
     _attr_device_class = SensorDeviceClass.TIMESTAMP
 
-    def _order(self):
+    def _order(self) -> OcadoOrder | None:
         """Return the order whose edit deadline this sensor reflects, if any."""
         return active_edit(self.coordinator.data, datetime.now())
 
@@ -133,7 +134,7 @@ class OcadoUpcoming(OcadoEntity, SensorEntity):
     _attr_unique_id = "ocado_upcoming_delivery"
     _attr_device_class = SensorDeviceClass.TIMESTAMP
 
-    def _order(self):
+    def _order(self) -> OcadoOrder | None:
         """Return the upcoming order, if any."""
         return upcoming_delivery(self.coordinator.data, datetime.now())
 
@@ -164,12 +165,11 @@ class OcadoTotal(OcadoEntity, SensorEntity):
 
     _attr_translation_key = "last_total"
     _attr_unique_id = "ocado_last_total"
-    _attr_icon = "mdi:receipt-text"
     _attr_device_class = SensorDeviceClass.MONETARY
     _attr_state_class = SensorStateClass.TOTAL
     _attr_native_unit_of_measurement = "GBP"
 
-    def _total(self):
+    def _total(self) -> OcadoOrder | None:
         """Return the cached total order, if any."""
         data = self.coordinator.data
         return data.get("total") if data else None
@@ -194,7 +194,6 @@ class OcadoVoucher(OcadoEntity, SensorEntity):
 
     _attr_translation_key = "latest_voucher"
     _attr_unique_id = "ocado_latest_voucher"
-    _attr_icon = "mdi:ticket-percent"
     _attr_device_class = SensorDeviceClass.MONETARY
     _attr_state_class = SensorStateClass.TOTAL
     _attr_native_unit_of_measurement = "GBP"
@@ -216,12 +215,11 @@ class OcadoOrderList(OcadoEntity, SensorEntity):
 
     _attr_translation_key = "orders"
     _attr_unique_id = "ocado_orders"
-    _attr_icon = "mdi:clipboard-list"
     _attr_state_class = SensorStateClass.MEASUREMENT
     _attr_entity_category = EntityCategory.DIAGNOSTIC
     _attr_entity_registry_enabled_default = False
 
-    def _orders(self):
+    def _orders(self) -> list[OcadoOrder]:
         """Return the current order list, or an empty list."""
         data = self.coordinator.data
         return (data.get("orders") if data else None) or []
