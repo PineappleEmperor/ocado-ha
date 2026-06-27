@@ -6,7 +6,6 @@ from email import policy
 from email.message import EmailMessage
 from email.parser import BytesParser
 from imaplib import IMAP4_SSL as imap
-import json
 import logging
 import re
 from typing import Any
@@ -559,76 +558,96 @@ def sort_orders(orders: list[OcadoOrder]) -> tuple[OcadoOrder, OcadoOrder]:
 
 
 
-def set_order(self, order: OcadoOrder, now: datetime) -> bool:
-    """This function validates an order is in the future and sets the state and attributes if it is."""
-    _LOGGER.debug("Setting order")
-    if (order.delivery_window_end is not None) and (order.delivery_datetime is not None):
-        today = now.date()
-        if order.delivery_window_end >= now:
-            days_until_next_delivery = (order.delivery_datetime.date() - today).days
-            self._attr_native_value = dt_util.as_local(order.delivery_datetime)
-            self._attr_icon = iconify(days_until_next_delivery)
-            self._attr_extra_state_attributes = {
-                "updated"               : order.updated,
-                "order_number"          : order.order_number,
-                "delivery_datetime"     : order.delivery_datetime,
-                "delivery_window"       : get_window(order.delivery_datetime, order.delivery_window_end),
-                "edit_deadline"         : order.edit_datetime,
-                "estimated_total"       : order.estimated_total,
-            }
-            return True
-    _LOGGER.debug("Order is not in the future.")
-    return False
+def active_delivery(data: dict[str, Any] | None, now: datetime) -> OcadoOrder | None:
+    """Return the soonest order whose delivery window has not yet ended.
 
-def set_edit_order(self, order: OcadoOrder, now: datetime) -> bool:
-    """This function validates an order is in the future and sets the state and attributes if it is."""
-    _LOGGER.debug("Setting edit order")
-    if (order.edit_datetime is not None):
-        today = now.date()
-        if order.edit_datetime >= now:
-            days_until_deadline = (order.edit_datetime.date() - today).days
-            self._attr_native_value = dt_util.as_local(order.edit_datetime)
-            self._attr_icon = iconify(days_until_deadline)
-            attributes = {
-                "updated"               : order.updated,
-                "order_number"          : order.order_number,
-            }
-            self._attr_extra_state_attributes = attributes
-            return True
-    return False
+    Prefers the ``next`` order, falling back to ``upcoming`` once the next
+    order's window has passed. Recomputed on every read, so the sensor rolls
+    onto the following order automatically with no timer.
+    """
+    if not data:
+        return None
+    for key in ("next", "upcoming"):
+        order = data.get(key)
+        if order and order.delivery_window_end and order.delivery_window_end >= now:
+            return order
+    return None
 
 
+def active_edit(data: dict[str, Any] | None, now: datetime) -> OcadoOrder | None:
+    """Return the soonest order whose edit deadline has not yet passed."""
+    if not data:
+        return None
+    for key in ("next", "upcoming"):
+        order = data.get(key)
+        if order and order.edit_datetime and order.edit_datetime >= now:
+            return order
+    return None
 
 
+def upcoming_delivery(data: dict[str, Any] | None, now: datetime) -> OcadoOrder | None:
+    """Return the ``upcoming`` order while its delivery window is still in the future."""
+    if not data:
+        return None
+    order = data.get("upcoming")
+    if order and order.delivery_window_end and order.delivery_window_end >= now:
+        return order
+    return None
 
-def set_voucher(self, voucher: OcadoVoucher, now: datetime) -> bool:
-    """This function sets the state and attributes if the voucher is still valid."""
-    _LOGGER.debug("Setting voucher")
-    if voucher.amount is None:
-        return False
-    if voucher.voucher_validity is not None:
-        validity = voucher.voucher_validity
-        validity_dt = validity if isinstance(validity, datetime) else datetime.combine(validity, datetime.min.time())
-        if validity_dt < now:
-            return False
-    self._attr_native_value = float(voucher.amount)
-    self._attr_icon = "mdi:ticket-percent"
-    self._attr_extra_state_attributes = {
-        "updated"               : voucher.issue_date,
-        "voucher"               : voucher.voucher,
-        "amount"                : voucher.amount,
-        "valid_until"           : voucher.voucher_validity,
+
+def delivery_attributes(order: OcadoOrder | None) -> dict[str, Any]:
+    """State attributes for a delivery sensor; all-``None`` when there's no order."""
+    if order is None:
+        return {
+            "updated"           : dt_util.now(),
+            "order_number"      : None,
+            "delivery_datetime" : None,
+            "delivery_window"   : None,
+            "edit_deadline"     : None,
+            "estimated_total"   : None,
+        }
+    start, end = order.delivery_datetime, order.delivery_window_end
+    return {
+        "updated"           : order.updated,
+        "order_number"      : order.order_number,
+        "delivery_datetime" : start,
+        "delivery_window"   : get_window(start, end) if start and end else None,
+        "edit_deadline"     : order.edit_datetime,
+        "estimated_total"   : order.estimated_total,
     }
-    return True
 
 
-def convert_attributes(obj):
-    """Function to convert datetimes and dates in objects for serialisation."""
-    if isinstance(obj, (datetime, date)):
-        return obj.isoformat()
-    raise TypeError("Type not serializable")
+def edit_attributes(order: OcadoOrder | None) -> dict[str, Any]:
+    """State attributes for an edit-deadline sensor; all-``None`` when there's no order."""
+    if order is None:
+        return {"updated": dt_util.now(), "order_number": None}
+    return {"updated": order.updated, "order_number": order.order_number}
 
 
-def detect_attr_changes(d1: dict, d2: dict) -> bool:
-    """Return True if the two attribute dicts differ once serialised."""
-    return hash(json.dumps(d1, sort_keys=True, default=convert_attributes)) != hash(json.dumps(d2, sort_keys=True, default=convert_attributes))
+
+def voucher_if_valid(data: dict[str, Any] | None, now: datetime) -> OcadoVoucher | None:
+    """Return the cached voucher while it still has an amount and is in date."""
+    voucher = data.get("voucher") if data else None
+    if voucher is None or voucher.amount is None:
+        return None
+    validity = voucher.voucher_validity
+    if validity is not None:
+        validity_dt = (
+            validity if isinstance(validity, datetime)
+            else datetime.combine(validity, datetime.min.time())
+        )
+        if validity_dt < now:
+            return None
+    return voucher
+
+
+def voucher_attributes(voucher: OcadoVoucher | None) -> dict[str, Any]:
+    """State attributes for the voucher sensor; all-``None`` when there's no valid voucher."""
+    if voucher is None:
+        return {"updated": dt_util.now(), "voucher": None, "amount": None, "valid_until": None}
+    return {
+        "updated"     : voucher.issue_date,
+        "voucher"     : voucher.voucher,
+        "amount"      : voucher.amount,
+        "valid_until" : voucher.voucher_validity,
+    }

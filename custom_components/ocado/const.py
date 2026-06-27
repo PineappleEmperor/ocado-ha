@@ -5,9 +5,6 @@ from dataclasses import dataclass, field
 from datetime import date, datetime
 import json
 
-from homeassistant.components.sensor import SensorDeviceClass, SensorEntityDescription
-from homeassistant.helpers.device_registry import DeviceInfo
-
 DOMAIN                          = "ocado"
 
 
@@ -33,37 +30,6 @@ OCADO_SUBJECT_DICT = {
     OCADO_NEW_TOTAL_SUBJECT:      "new_total",
     OCADO_NEW_NEW_TOTAL_SUBJECT:  "new_total",
 }
-OCADO_DELIVERY_DEVICE_DESCRIPTION = DeviceInfo(
-    identifiers     = {(DOMAIN, "deliveries")},
-    name            = "Ocado (UK) Deliveries",
-    manufacturer    = "Ocado-ha",
-    model           = "Delivery Sensor",
-    sw_version      = "1.0",
-)
-OCADO_DELIVERY_DESCRIPTION = SensorEntityDescription(
-    key                         = "ocado_next_delivery",
-    name                        = "Ocado Next Delivery",
-)
-OCADO_EDIT_DESCRIPTION = SensorEntityDescription(
-    key                         = "ocado_next_edit_deadline",
-    name                        = "Ocado Next Edit Deadline",
-)
-OCADO_TOTAL_DESCRIPTION = SensorEntityDescription(
-    key                         = "ocado_last_total",
-    name                        = "Ocado Last Total",
-    device_class                = SensorDeviceClass.MONETARY,
-    native_unit_of_measurement  = "GBP",
-    icon                        = "mdi:receipt-text",
-)
-OCADO_UPCOMING_DESCRIPTION = SensorEntityDescription(
-    key                         = "ocado_upcoming_delivery",
-    name                        = "Ocado Upcoming Delivery",
-)
-OCADO_ORDER_LIST_DESCRIPTION = SensorEntityDescription(
-    key                         = "ocado_orders",
-    name                        = "Ocado Orders",
-)
-
 CONF_DELIVERY_TITLE = 'delivery_title'
 CONF_EDIT_TITLE     = 'edit_title'
 CONF_IMAP_DAYS      = 'imap_days'
@@ -85,8 +51,6 @@ ORDER_NUMBER_SHORT_LEN = 5
 DELIVERY_TITLE_TOKENS = ("order_number", "order_number_short", "total", "date", "window")
 EDIT_TITLE_TOKENS = ("order_number", "order_number_short", "deadline")
 
-DEVICE_CLASS        = "ocado_deliveries"
-
 EMAIL_ATTR_FROM     = 'from'
 EMAIL_ATTR_SUBJECT  = 'subject'
 EMAIL_ATTR_BODY     = 'body'
@@ -94,6 +58,13 @@ EMAIL_ATTR_DATE     = 'date'
 
 MIN_IMAP_DAYS       = 7
 MIN_SCAN_INTERVAL   = 60
+
+# Consecutive failed polls tolerated (cached data kept, sensors stay available)
+# before the log escalates from debug to warning. ~1 hour at the default poll.
+FAILURES_BEFORE_WARNING = 6
+# Consecutive failed polls before a user-facing repair issue is raised. ~2 hours
+# at the default poll. A quiet inbox is a success and never counts toward this.
+FAILURES_BEFORE_REPAIR = 12
 
 REGEX_EDIT_UNTIL    = r"(?:You\scan\sedit\sthis\sorder\suntil:?\s)"
 

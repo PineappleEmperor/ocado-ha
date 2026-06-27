@@ -39,17 +39,22 @@ rules:
 
   # Gold
   entity-translations: done
-  entity-device-class: todo
+  entity-device-class: done
   devices: done
-  entity-category: todo
+  entity-category: done
   entity-disabled-by-default: done
   discovery:
     status: exempt
     comment: Ocado data arrives by IMAP email; there is nothing on the network to discover.
   stale-devices: done
-  diagnostics: todo
-  exception-translations: todo
-  icon-translations: todo
+  diagnostics: done
+  exception-translations:
+    status: exempt
+    comment: >-
+      No user-invoked action raises an error. Config-flow failures use the flow
+      error translations and coordinator failures surface via the translated
+      refresh_failing repair issue.
+  icon-translations: done
   reconfiguration-flow: done
   dynamic-devices:
     status: exempt
@@ -57,7 +62,7 @@ rules:
   discovery-update-info:
     status: exempt
     comment: No discovery, so there is no discovery info to update.
-  repair-issues: todo
+  repair-issues: done
   docs-use-cases: todo
   docs-supported-devices:
     status: exempt
@@ -75,4 +80,4 @@ rules:
   inject-websession:
     status: exempt
     comment: The integration talks to IMAP, not HTTP, so there is no web session to inject.
-  strict-typing: todo
+  strict-typing: done

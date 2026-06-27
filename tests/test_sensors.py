@@ -99,6 +99,4 @@ async def test_orders_sensor_state_is_count(
     coordinator.data = {"orders": [EMPTY_ORDER, EMPTY_ORDER]}
     entity = OcadoOrderList(coordinator)
 
-    entity._handle_coordinator_update()
-
     assert entity.native_value == 2

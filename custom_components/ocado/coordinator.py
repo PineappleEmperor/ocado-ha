@@ -10,7 +10,9 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_EMAIL, CONF_PASSWORD, CONF_SCAN_INTERVAL
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryAuthFailed
+from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
+from homeassistant.loader import IntegrationNotLoaded, async_get_loaded_integration
 
 from .const import (
     CONF_IMAP_DAYS,
@@ -20,6 +22,8 @@ from .const import (
     DEFAULT_IMAP_DAYS,
     DEFAULT_SCAN_INTERVAL,
     DOMAIN,
+    FAILURES_BEFORE_REPAIR,
+    FAILURES_BEFORE_WARNING,
     OcadoAuthError,
 )
 from .utils import email_triage, order_parse, sort_orders, total_parse, voucher_parse
@@ -45,6 +49,18 @@ class OcadoUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self.scan_interval  : int  = config_entry.options.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)
         self.imap_days      : int  = config_entry.options.get(CONF_IMAP_DAYS, DEFAULT_IMAP_DAYS)
 
+        # Surface the integration version as the device firmware version.
+        try:
+            version = async_get_loaded_integration(hass, DOMAIN).version
+            self.version: str = str(version) if version else "unknown"
+        except IntegrationNotLoaded:
+            self.version = "unknown"
+
+        # Consecutive failures while holding cached data; drives log escalation
+        # and the repair issue keyed on this entry.
+        self._consecutive_failures = 0
+        self._entry_id = config_entry.entry_id
+
         super().__init__(
             hass,
             _LOGGER,
@@ -52,7 +68,7 @@ class OcadoUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             config_entry    = config_entry,
             update_method   = self.async_update_data,
             update_interval = timedelta(seconds=self.scan_interval),
-            always_update   = True,
+            always_update   = False,
         )
 
     async def async_update_data(self) -> dict[str, Any]:
@@ -65,6 +81,7 @@ class OcadoUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             message_ids, triaged_emails = await self.hass.async_add_executor_job(email_triage, self)
             if triaged_emails is None:
                 _LOGGER.debug("No new emails found, returning cached data")
+                self._mark_success()
                 return self.data
             orders                  = []
             for order in triaged_emails.confirmations:
@@ -94,6 +111,7 @@ class OcadoUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             else:
                 _LOGGER.debug("No voucher email found.")
                 voucher             = None
+            self._mark_success()
             return {
                     "updated"       : datetime.now(UTC),
                     "message_ids"   : message_ids,
@@ -104,9 +122,50 @@ class OcadoUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                     "orders"        : orders,
                 }
         except OcadoAuthError as err:
+            # Bad credentials never resolve themselves; trigger reauth immediately.
             raise ConfigEntryAuthFailed("IMAP authentication failed") from err
         except Exception as err:
-            if self.data is not None:
-                _LOGGER.warning("Keeping cached Ocado data after fetch error: %s", err)
-                return self.data
-            raise UpdateFailed(f"Error fetching data: {err}") from err
+            # Cold start with nothing cached: fail setup so the entry retries.
+            if self.data is None:
+                raise UpdateFailed(f"Error fetching data: {err}") from err
+            # An Ocado delivery stays relevant for days, so a transient fetch
+            # error (network blip, mail host down) must not blank the sensors.
+            # Hold the cached data and stay available; escalate the log so a
+            # persistent failure is still visible.
+            self._consecutive_failures += 1
+            if self._consecutive_failures >= FAILURES_BEFORE_REPAIR:
+                _LOGGER.warning(
+                    "Ocado data has not refreshed for %s consecutive polls: %s",
+                    self._consecutive_failures, err,
+                )
+                ir.async_create_issue(
+                    self.hass,
+                    DOMAIN,
+                    self._issue_id,
+                    is_fixable=False,
+                    severity=ir.IssueSeverity.WARNING,
+                    translation_key="refresh_failing",
+                    translation_placeholders={
+                        "failures": str(self._consecutive_failures),
+                        "error": str(err),
+                    },
+                )
+            elif self._consecutive_failures >= FAILURES_BEFORE_WARNING:
+                _LOGGER.warning(
+                    "Ocado data has not refreshed for %s consecutive polls: %s",
+                    self._consecutive_failures, err,
+                )
+            else:
+                _LOGGER.debug("Keeping cached Ocado data after fetch error: %s", err)
+            return self.data
+
+    @property
+    def _issue_id(self) -> str:
+        """Stable repair-issue id for this config entry."""
+        return f"refresh_failing_{self._entry_id}"
+
+    def _mark_success(self) -> None:
+        """Reset the failure counter and clear any open repair issue."""
+        if self._consecutive_failures:
+            self._consecutive_failures = 0
+            ir.async_delete_issue(self.hass, DOMAIN, self._issue_id)

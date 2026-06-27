@@ -5,10 +5,17 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from custom_components.ocado.const import OcadoAuthError, OcadoEmails
+from custom_components.ocado.const import (
+    DOMAIN,
+    FAILURES_BEFORE_REPAIR,
+    OcadoAuthError,
+    OcadoEmails,
+)
 from custom_components.ocado.coordinator import OcadoUpdateCoordinator
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryAuthFailed
+from homeassistant.helpers import issue_registry as ir
+from homeassistant.helpers.update_coordinator import UpdateFailed
 
 
 async def test_auth_error_raises_config_entry_auth_failed(
@@ -87,3 +94,44 @@ async def test_transient_error_keeps_cached_data(
         data = await coordinator.async_update_data()
 
     assert data is cached
+
+
+async def test_cold_start_error_raises_update_failed(
+    hass: HomeAssistant, mock_config_entry
+) -> None:
+    """A fetch failure before any data is cached fails the update (entry retries)."""
+    coordinator = OcadoUpdateCoordinator(hass, mock_config_entry)
+    assert coordinator.data is None
+    with (
+        patch(
+            "custom_components.ocado.coordinator.email_triage",
+            side_effect=TimeoutError("read operation timed out"),
+        ),
+        pytest.raises(UpdateFailed),
+    ):
+        await coordinator.async_update_data()
+
+
+async def test_repair_issue_raised_and_cleared(
+    hass: HomeAssistant, mock_config_entry
+) -> None:
+    """Persistent errors raise a repair issue; a later success clears it."""
+    coordinator = OcadoUpdateCoordinator(hass, mock_config_entry)
+    coordinator.data = {"orders": None}
+    issue_id = f"refresh_failing_{mock_config_entry.entry_id}"
+    registry = ir.async_get(hass)
+
+    with patch(
+        "custom_components.ocado.coordinator.email_triage",
+        side_effect=TimeoutError("read operation timed out"),
+    ):
+        for _ in range(FAILURES_BEFORE_REPAIR):
+            await coordinator.async_update_data()
+    assert registry.async_get_issue(DOMAIN, issue_id) is not None
+
+    with patch(
+        "custom_components.ocado.coordinator.email_triage",
+        return_value=([b"1"], OcadoEmails()),
+    ):
+        await coordinator.async_update_data()
+    assert registry.async_get_issue(DOMAIN, issue_id) is None
