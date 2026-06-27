@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import UTC, datetime, timedelta
+from datetime import timedelta
 import logging
 from typing import Any
 
@@ -111,16 +111,6 @@ class OcadoUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             else:
                 _LOGGER.debug("No voucher email found.")
                 voucher             = None
-            self._mark_success()
-            return {
-                    "updated"       : datetime.now(UTC),
-                    "message_ids"   : message_ids,
-                    "next"          : next_order,
-                    "upcoming"      : upcoming_order,
-                    "total"         : total,
-                    "voucher"       : voucher,
-                    "orders"        : orders,
-                }
         except OcadoAuthError as err:
             # Bad credentials never resolve themselves; trigger reauth immediately.
             raise ConfigEntryAuthFailed("IMAP authentication failed") from err
@@ -158,6 +148,16 @@ class OcadoUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             else:
                 _LOGGER.debug("Keeping cached Ocado data after fetch error: %s", err)
             return self.data
+        else:
+            self._mark_success()
+            return {
+                "message_ids": message_ids,
+                "next": next_order,
+                "upcoming": upcoming_order,
+                "total": total,
+                "voucher": voucher,
+                "orders": orders,
+            }
 
     @property
     def _issue_id(self) -> str:
