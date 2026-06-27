@@ -47,7 +47,7 @@ rules:
     status: exempt
     comment: Ocado data arrives by IMAP email; there is nothing on the network to discover.
   stale-devices: done
-  diagnostics: todo
+  diagnostics: done
   exception-translations: todo
   icon-translations: todo
   reconfiguration-flow: done
