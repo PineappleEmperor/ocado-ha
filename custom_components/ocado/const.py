@@ -87,6 +87,10 @@ EMAIL_ATTR_DATE     = 'date'
 MIN_IMAP_DAYS       = 7
 MIN_SCAN_INTERVAL   = 60
 
+# Consecutive failed polls tolerated (cached data kept, sensors stay available)
+# before the log escalates from debug to warning. ~1 hour at the default poll.
+FAILURES_BEFORE_WARNING = 6
+
 REGEX_EDIT_UNTIL    = r"(?:You\scan\sedit\sthis\sorder\suntil:?\s)"
 
 REGEX_DATE          = r"3[01]|[12][0-9]|0?[1-9]"

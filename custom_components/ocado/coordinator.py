@@ -21,6 +21,7 @@ from .const import (
     DEFAULT_IMAP_DAYS,
     DEFAULT_SCAN_INTERVAL,
     DOMAIN,
+    FAILURES_BEFORE_WARNING,
     OcadoAuthError,
 )
 from .utils import email_triage, order_parse, sort_orders, total_parse, voucher_parse
@@ -53,6 +54,9 @@ class OcadoUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         except IntegrationNotLoaded:
             self.version = "unknown"
 
+        # Consecutive failures while holding cached data; drives log escalation.
+        self._consecutive_failures = 0
+
         super().__init__(
             hass,
             _LOGGER,
@@ -60,7 +64,7 @@ class OcadoUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             config_entry    = config_entry,
             update_method   = self.async_update_data,
             update_interval = timedelta(seconds=self.scan_interval),
-            always_update   = True,
+            always_update   = False,
         )
 
     async def async_update_data(self) -> dict[str, Any]:
@@ -73,6 +77,7 @@ class OcadoUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             message_ids, triaged_emails = await self.hass.async_add_executor_job(email_triage, self)
             if triaged_emails is None:
                 _LOGGER.debug("No new emails found, returning cached data")
+                self._consecutive_failures = 0
                 return self.data
             orders                  = []
             for order in triaged_emails.confirmations:
@@ -102,6 +107,7 @@ class OcadoUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             else:
                 _LOGGER.debug("No voucher email found.")
                 voucher             = None
+            self._consecutive_failures = 0
             return {
                     "updated"       : datetime.now(UTC),
                     "message_ids"   : message_ids,
@@ -112,9 +118,22 @@ class OcadoUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                     "orders"        : orders,
                 }
         except OcadoAuthError as err:
+            # Bad credentials never resolve themselves; trigger reauth immediately.
             raise ConfigEntryAuthFailed("IMAP authentication failed") from err
         except Exception as err:
-            if self.data is not None:
-                _LOGGER.warning("Keeping cached Ocado data after fetch error: %s", err)
-                return self.data
-            raise UpdateFailed(f"Error fetching data: {err}") from err
+            # Cold start with nothing cached: fail setup so the entry retries.
+            if self.data is None:
+                raise UpdateFailed(f"Error fetching data: {err}") from err
+            # An Ocado delivery stays relevant for days, so a transient fetch
+            # error (network blip, mail host down) must not blank the sensors.
+            # Hold the cached data and stay available; escalate the log so a
+            # persistent failure is still visible.
+            self._consecutive_failures += 1
+            if self._consecutive_failures >= FAILURES_BEFORE_WARNING:
+                _LOGGER.warning(
+                    "Ocado data has not refreshed for %s consecutive polls: %s",
+                    self._consecutive_failures, err,
+                )
+            else:
+                _LOGGER.debug("Keeping cached Ocado data after fetch error: %s", err)
+            return self.data

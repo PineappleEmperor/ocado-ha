@@ -9,6 +9,7 @@ from custom_components.ocado.const import OcadoAuthError, OcadoEmails
 from custom_components.ocado.coordinator import OcadoUpdateCoordinator
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryAuthFailed
+from homeassistant.helpers.update_coordinator import UpdateFailed
 
 
 async def test_auth_error_raises_config_entry_auth_failed(
@@ -87,3 +88,19 @@ async def test_transient_error_keeps_cached_data(
         data = await coordinator.async_update_data()
 
     assert data is cached
+
+
+async def test_cold_start_error_raises_update_failed(
+    hass: HomeAssistant, mock_config_entry
+) -> None:
+    """A fetch failure before any data is cached fails the update (entry retries)."""
+    coordinator = OcadoUpdateCoordinator(hass, mock_config_entry)
+    assert coordinator.data is None
+    with (
+        patch(
+            "custom_components.ocado.coordinator.email_triage",
+            side_effect=TimeoutError("read operation timed out"),
+        ),
+        pytest.raises(UpdateFailed),
+    ):
+        await coordinator.async_update_data()
