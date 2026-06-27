@@ -599,7 +599,7 @@ def delivery_attributes(order: OcadoOrder | None) -> dict[str, Any]:
     """State attributes for a delivery sensor; all-``None`` when there's no order."""
     if order is None:
         return {
-            "updated"           : dt_util.now(),
+            "updated"           : None,
             "order_number"      : None,
             "delivery_datetime" : None,
             "delivery_window"   : None,
@@ -620,7 +620,7 @@ def delivery_attributes(order: OcadoOrder | None) -> dict[str, Any]:
 def edit_attributes(order: OcadoOrder | None) -> dict[str, Any]:
     """State attributes for an edit-deadline sensor; all-``None`` when there's no order."""
     if order is None:
-        return {"updated": dt_util.now(), "order_number": None}
+        return {"updated": None, "order_number": None}
     return {"updated": order.updated, "order_number": order.order_number}
 
 
@@ -644,7 +644,7 @@ def voucher_if_valid(data: dict[str, Any] | None, now: datetime) -> OcadoVoucher
 def voucher_attributes(voucher: OcadoVoucher | None) -> dict[str, Any]:
     """State attributes for the voucher sensor; all-``None`` when there's no valid voucher."""
     if voucher is None:
-        return {"updated": dt_util.now(), "voucher": None, "amount": None, "valid_until": None}
+        return {"updated": None, "voucher": None, "amount": None, "valid_until": None}
     return {
         "updated"     : voucher.issue_date,
         "voucher"     : voucher.voucher,

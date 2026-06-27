@@ -45,7 +45,6 @@ async def test_update_success_builds_data(
         data = await coordinator.async_update_data()
 
     assert set(data) == {
-        "updated",
         "message_ids",
         "next",
         "upcoming",

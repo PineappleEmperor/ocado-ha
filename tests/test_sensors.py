@@ -100,3 +100,16 @@ async def test_orders_sensor_state_is_count(
     entity = OcadoOrderList(coordinator)
 
     assert entity.native_value == 2
+
+
+async def test_orders_attribute_is_structured_dicts(
+    hass: HomeAssistant, mock_config_entry
+) -> None:
+    """The orders attribute exposes JSON-safe dicts, not repr strings."""
+    coordinator = OcadoUpdateCoordinator(hass, mock_config_entry)
+    coordinator.data = {"orders": [EMPTY_ORDER]}
+    entity = OcadoOrderList(coordinator)
+
+    orders = entity.extra_state_attributes["orders"]
+    assert isinstance(orders[0], dict)
+    assert "order_number" in orders[0]

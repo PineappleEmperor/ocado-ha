@@ -232,4 +232,4 @@ class OcadoOrderList(OcadoEntity, SensorEntity):
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
         """Every known order, serialised."""
-        return {"orders": [order.toJSON() for order in self._orders()]}
+        return {"orders": [order.as_dict() for order in self._orders()]}

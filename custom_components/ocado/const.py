@@ -1,9 +1,9 @@
 """Constants for the Ocado integration."""
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field
 from datetime import date, datetime
-import json
+from typing import Any
 
 DOMAIN                          = "ocado"
 
@@ -131,9 +131,12 @@ class OcadoOrder:
     edit_datetime               : datetime | None
     estimated_total             : str      | None
 
-    def toJSON(self):
-        """Return a JSON representation of the order."""
-        return json.dumps(self, default=str)
+    def as_dict(self) -> dict[str, Any]:
+        """Return a JSON-safe dict of the order, with datetimes as ISO strings."""
+        return {
+            key: value.isoformat() if isinstance(value, (date, datetime)) else value
+            for key, value in asdict(self).items()
+        }
 
 EMPTY_ORDER = OcadoOrder(
         updated             = datetime.now(),
