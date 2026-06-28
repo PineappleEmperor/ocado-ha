@@ -25,17 +25,6 @@ The integration turns your Ocado order emails into entities you can automate aga
 * **Voucher tracking** — surface the most recent Ocado Price Promise voucher and its value before it expires.
 * **Calendar overlays** — see deliveries and edit deadlines alongside the rest of your life in any Home Assistant calendar card.
 
-Use Cases
----------
-
-The integration turns your Ocado order emails into entities you can automate against. Common things people do with it:
-
-* **Edit-deadline reminders** — get a notification an hour before you can no longer amend your next order (see [Tips & Tricks](#tips--tricks)).
-* **Delivery-day awareness** — show "your next delivery is in 2 days" on a dashboard, or trigger a "bring the shopping in" reminder when the delivery window starts.
-* **Budgeting** — react to the estimated total of an upcoming order, or top up a grocery "pot" automatically.
-* **Voucher tracking** — surface the most recent Ocado Price Promise voucher and its value before it expires.
-* **Calendar overlays** — see deliveries and edit deadlines alongside the rest of your life in any Home Assistant calendar card.
-
 Installation
 ------------
 
