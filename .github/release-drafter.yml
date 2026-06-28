@@ -52,7 +52,7 @@ replacers:
     replace: ''
   - search: '/Dependabot will resolve[^\n]*\n?/g'
     replace: ''
-  - search: '/\/\/: # \(dependabot-start\)[\s\S]*?\/\/: # \(dependabot-end\)\s*/g'
+  - search: '/\[\/\/\]: # \(dependabot-start\)[\s\S]*?\[\/\/\]: # \(dependabot-end\)\s*/g'
     replace: ''
   - search: '/<br\s*\/?>\s*/g'
     replace: ''
