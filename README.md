@@ -14,8 +14,16 @@ This is an unofficial Ocado integration for Home Assistant. This integration cre
 
 I'd suggest creating a new email address and set up auto-forwarding on any emails you wish this integration, or any other IMAP integration to access.
 
-> [!NOTE]
-> **AI assistance:** I'm a programmer; this project is built with AI (Claude, via Claude Code) for implementation, code review, and QA — under human direction, guided by my [`ha-integration`](https://github.com/PineappleEmperor/pineapple-claude-hacs) skill. Architecture and final review are mine; every change is human-reviewed before it merges.
+Use Cases
+---------
+
+The integration turns your Ocado order emails into entities you can automate against. Common things people do with it:
+
+* **Edit-deadline reminders** — get a notification an hour before you can no longer amend your next order (see [Tips & Tricks](#tips--tricks)).
+* **Delivery-day awareness** — show "your next delivery is in 2 days" on a dashboard, or trigger a "bring the shopping in" reminder when the delivery window starts.
+* **Budgeting** — react to the estimated total of an upcoming order, or top up a grocery "pot" automatically.
+* **Voucher tracking** — surface the most recent Ocado Price Promise voucher and its value before it expires.
+* **Calendar overlays** — see deliveries and edit deadlines alongside the rest of your life in any Home Assistant calendar card.
 
 Use Cases
 ---------
@@ -318,9 +326,16 @@ Removal
 -------
 Navigate to **Settings** > **Devices & Services**, select the Ocado integration, open the three-dot menu and choose **Delete**. This removes the config entry, its device and all of its sensors. No changes to your mailbox or Ocado account are needed.
 
+Development
+-----------
+
+> [!NOTE]
+> **AI assistance:** I'm a programmer; this project is built with AI (Claude, via Claude Code) for implementation, code review, and QA — under human direction, guided by my [`ha-integration`](https://github.com/PineappleEmperor/pineapple-claude-hacs) skill. Architecture and final review are mine; every change is human-reviewed before it merges.
+
 Future Plans
 --------
 1. Best-before-date sensors (parked pending an Ocado receipt-format change)
+2. Interfacing with the core IMAP integration for email retrieval, ideally with OAuth2 support
 
 <!-- Badges -->
 
