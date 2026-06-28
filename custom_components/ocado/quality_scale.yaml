@@ -63,14 +63,14 @@ rules:
     status: exempt
     comment: No discovery, so there is no discovery info to update.
   repair-issues: done
-  docs-use-cases: todo
+  docs-use-cases: done
   docs-supported-devices:
     status: exempt
     comment: This is a service integration with no physical devices.
-  docs-supported-functions: todo
-  docs-data-update: todo
-  docs-known-limitations: todo
-  docs-troubleshooting: todo
+  docs-supported-functions: done
+  docs-data-update: done
+  docs-known-limitations: done
+  docs-troubleshooting: done
   docs-examples: done
 
   # Platinum

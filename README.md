@@ -17,6 +17,17 @@ I'd suggest creating a new email address and set up auto-forwarding on any email
 > [!NOTE]
 > **AI assistance:** I'm a programmer; this project is built with AI (Claude, via Claude Code) for implementation, code review, and QA — under human direction, guided by my [`ha-integration`](https://github.com/PineappleEmperor/pineapple-claude-hacs) skill. Architecture and final review are mine; every change is human-reviewed before it merges.
 
+Use Cases
+---------
+
+The integration turns your Ocado order emails into entities you can automate against. Common things people do with it:
+
+* **Edit-deadline reminders** — get a notification an hour before you can no longer amend your next order (see [Tips & Tricks](#tips--tricks)).
+* **Delivery-day awareness** — show "your next delivery is in 2 days" on a dashboard, or trigger a "bring the shopping in" reminder when the delivery window starts.
+* **Budgeting** — react to the estimated total of an upcoming order, or top up a grocery "pot" automatically.
+* **Voucher tracking** — surface the most recent Ocado Price Promise voucher and its value before it expires.
+* **Calendar overlays** — see deliveries and edit deadlines alongside the rest of your life in any Home Assistant calendar card.
+
 Installation
 ------------
 
@@ -222,7 +233,7 @@ It has six attributes:
 <summary><strong>Orders Sensor (disabled by default)</strong></summary>
 <div style="margin-left: 25px;">
 
-This sensor provides a list (via its attribute) of all future orders that have been parsed by the integration. The state of the sensor is the datetime it was last updated.
+This sensor provides a list (via its attribute) of all future orders that have been parsed by the integration. The state of the sensor is the number of future orders currently parsed; the orders themselves are exposed as structured dictionaries in the attribute.
 
 It has a single attribute:
 
@@ -252,6 +263,56 @@ It has four attributes:
 </div>
 </details>
 </details>
+
+### Calendars
+
+The integration also creates two calendar entities on the same device, so deliveries and edit deadlines show up in any calendar card or `calendar.*` automation:
+
+<div style="margin-left: 25px;">
+
+| **Calendar**        | **Entity**                          | **Events**                                                                 |
+|---------------------|-------------------------------------|----------------------------------------------------------------------------|
+| **Deliveries**      | `calendar.ocado_uk_deliveries`      | One all-window event per booked delivery, spanning the delivery slot.       |
+| **Edit Deadlines**  | `calendar.ocado_uk_edit_deadlines`  | A short marker event at each order's amend-by time.                         |
+
+</div>
+
+The events are rebuilt from the parsed orders on every read, so a cancelled or moved order is reflected automatically — no stale events linger. The event title format for each calendar is configurable from the integration's **Options** (see [Configuration Options](#configuration-options)).
+
+How Data Updates
+----------------
+
+This is a `cloud_polling` integration: it does not receive push updates. On each poll it connects to your mailbox over IMAP, reads the recent Ocado emails (confirmations, totals, vouchers) and rebuilds the sensor and calendar state from them.
+
+* **Poll frequency** is the **Scan interval** option (default every 10 minutes, minimum every 5 minutes).
+* **History window** is the **IMAP days** option (default 31 days) — how far back each poll looks for relevant emails.
+* A poll that fails transiently (network blip, mail host down) keeps the last-known data rather than blanking the sensors; a delivery stays relevant for days. After several consecutive failures a **repair issue** is raised so a persistent problem is visible.
+
+Because there is no Ocado API, every value comes from parsing the emails Ocado sends — so an entity only appears once the corresponding email has arrived and been polled.
+
+Known Limitations
+-----------------
+
+* **No real-time updates.** Data is only as fresh as the last poll; expect up to your scan-interval of lag after an email arrives.
+* **Email-format dependent.** Parsing relies on Ocado's current email layouts. If Ocado changes a template, a sensor may stop populating until the parser is updated — please open an issue with a (redacted) example.
+* **UK Ocado only.** The parsers target Ocado UK emails; other Ocado-powered retailers are not supported.
+* **English-language emails** are assumed for date and amount parsing.
+* **Best-before-date sensors** are not yet available (parked pending an Ocado receipt-format change).
+* **No write access.** The integration reads your mailbox; it cannot place, amend or cancel orders.
+
+Troubleshooting
+---------------
+
+| **Symptom**                                  | **Likely cause / fix**                                                                                                                                  |
+|----------------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------|
+| **Setup fails / re-auth prompt appears**     | The mailbox credentials were rejected. Check the username/password (use an **app password** for Gmail and similar), then complete the re-auth prompt.   |
+| **No sensors populate**                      | Confirm the **IMAP server**, **port** and **folder** are correct and that Ocado emails actually reach that folder/label. Increase **IMAP days** if your next order is booked far in advance. |
+| **A sensor is `unknown` / missing**          | The relevant email hasn't been received/polled yet (e.g. no recent total, or no valid voucher). It will populate on the next poll after the email arrives. |
+| **Data looks stale**                         | Reduce the **Scan interval**, but keep it at 5 minutes or above. A transient fetch error keeps the previous data on purpose.                            |
+| **A repair issue about refresh failures**    | The mailbox has been unreachable for several consecutive polls. Check connectivity and credentials; the issue clears automatically once a poll succeeds. |
+| **Orders sensor is absent**                  | It is **disabled by default** — enable it from the entity's settings if you want the full parsed-orders list.                                            |
+
+For anything else, enable debug logging for the integration (**Settings → Devices & Services → Ocado → Enable debug logging**) and include the log when opening an issue. Diagnostics can also be downloaded from the device page; credentials are redacted.
 
 Removal
 -------
