@@ -2,7 +2,7 @@ name: Create Release ZIP
 
 on:
   release:
-    types: [created, published]
+    types: [published]
 
 permissions:
   contents: write
@@ -12,22 +12,14 @@ jobs:
     name: Create Release Asset
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v7
+      - uses: actions/checkout@v7
 
       - name: Create ZIP file
         run: |
-          cd custom_components/ocado_ha
-          zip -r ../../ocado_ha.zip .
-          cd ../..
-          ls -la ocado_ha.zip
+          cd custom_components/ocado
+          zip -r "$GITHUB_WORKSPACE/ocado.zip" . -x '*/__pycache__/*' '*.pyc'
 
-      - name: Upload Release Asset
-        uses: actions/upload-release-asset@v1
+      - name: Upload release asset
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ github.event.release.upload_url }}
-          asset_path: ./ocado_ha.zip
-          asset_name: ocado_ha.zip
-          asset_content_type: application/zip
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release upload "${{ github.event.release.tag_name }}" "$GITHUB_WORKSPACE/ocado.zip" --clobber
