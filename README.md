@@ -14,9 +14,6 @@ This is an unofficial Ocado integration for Home Assistant. This integration cre
 
 I'd suggest creating a new email address and set up auto-forwarding on any emails you wish this integration, or any other IMAP integration to access.
 
-> [!NOTE]
-> **AI assistance:** I'm a programmer; this project is built with AI (Claude, via Claude Code) for implementation, code review, and QA — under human direction, guided by my [`ha-integration`](https://github.com/PineappleEmperor/pineapple-claude-hacs) skill. Architecture and final review are mine; every change is human-reviewed before it merges.
-
 Use Cases
 ---------
 
@@ -318,9 +315,16 @@ Removal
 -------
 Navigate to **Settings** > **Devices & Services**, select the Ocado integration, open the three-dot menu and choose **Delete**. This removes the config entry, its device and all of its sensors. No changes to your mailbox or Ocado account are needed.
 
+Development
+-----------
+
+> [!NOTE]
+> **AI assistance:** I'm a programmer; this project is built with AI (Claude, via Claude Code) for implementation, code review, and QA — under human direction, guided by my [`ha-integration`](https://github.com/PineappleEmperor/pineapple-claude-hacs) skill. Architecture and final review are mine; every change is human-reviewed before it merges.
+
 Future Plans
 --------
 1. Best-before-date sensors (parked pending an Ocado receipt-format change)
+2. Interfacing with the core IMAP integration for email retrieval, ideally with OAuth2 support
 
 <!-- Badges -->
 
