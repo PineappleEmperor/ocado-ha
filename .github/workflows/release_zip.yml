@@ -3,12 +3,6 @@ name: Create Release ZIP
 on:
   release:
     types: [published]
-  workflow_dispatch:
-    inputs:
-      tag:
-        description: "Release tag to build and attach the ZIP to (e.g. v2.0.0)"
-        required: true
-        type: string
 
 permissions:
   contents: write
@@ -18,13 +12,7 @@ jobs:
     name: Create Release Asset
     runs-on: ubuntu-latest
     steps:
-      - name: Resolve tag
-        id: tag
-        run: echo "tag=${{ github.event.inputs.tag || github.event.release.tag_name }}" >> "$GITHUB_OUTPUT"
-
       - uses: actions/checkout@v7
-        with:
-          ref: ${{ steps.tag.outputs.tag }}
 
       - name: Create ZIP file
         run: |
@@ -34,4 +22,4 @@ jobs:
       - name: Upload release asset
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh release upload "${{ steps.tag.outputs.tag }}" "$GITHUB_WORKSPACE/ocado.zip" --clobber
+        run: gh release upload "${{ github.event.release.tag_name }}" "$GITHUB_WORKSPACE/ocado.zip" --clobber
