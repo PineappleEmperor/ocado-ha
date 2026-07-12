@@ -17,6 +17,12 @@
       },
       "orders": {
         "default": "mdi:clipboard-list"
+      },
+      "missing_items": {
+        "default": "mdi:cart-remove"
+      },
+      "substituted_items": {
+        "default": "mdi:swap-horizontal"
       }
     }
   }

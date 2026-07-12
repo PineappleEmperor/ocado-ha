@@ -15,7 +15,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.util import dt as dt_util
 
-from .const import OcadoOrder
+from .const import OcadoDeliveryUpdate, OcadoOrder
 from .coordinator import OcadoConfigEntry
 from .entity import OcadoEntity
 from .utils import (
@@ -47,6 +47,8 @@ async def async_setup_entry(
             OcadoUpcoming(coordinator),
             OcadoOrderList(coordinator),
             OcadoVoucher(coordinator),
+            OcadoMissing(coordinator),
+            OcadoSubstitutions(coordinator),
         ]
     )
 
@@ -233,3 +235,60 @@ class OcadoOrderList(OcadoEntity, SensorEntity):
     def extra_state_attributes(self) -> dict[str, Any]:
         """Every known order, serialised."""
         return {"orders": [order.as_dict() for order in self._orders()]}
+
+
+class OcadoDeliveryUpdateEntity(OcadoEntity, SensorEntity):
+    """Base for the missing/substituted item sensors from the delivery-day email."""
+
+    _attr_state_class = SensorStateClass.MEASUREMENT
+
+    def _update(self) -> OcadoDeliveryUpdate | None:
+        """Return the latest parsed delivery update, or None."""
+        data = self.coordinator.data
+        return data.get("delivery_update") if data else None
+
+
+class OcadoMissing(OcadoDeliveryUpdateEntity):
+    """The count of entirely-missing items from the latest delivery."""
+
+    _attr_translation_key = "missing_items"
+    _attr_unique_id = "ocado_missing_items"
+
+    @property
+    def native_value(self) -> int:
+        """The number of missing items."""
+        update = self._update()
+        return len(update.missing) if update else 0
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """The missing items, plus the order they belong to."""
+        update = self._update()
+        return {
+            "missing": update.missing if update else [],
+            "order_number": update.order_number if update else None,
+            "updated": update.updated if update else None,
+        }
+
+
+class OcadoSubstitutions(OcadoDeliveryUpdateEntity):
+    """The count of substituted items from the latest delivery."""
+
+    _attr_translation_key = "substituted_items"
+    _attr_unique_id = "ocado_substituted_items"
+
+    @property
+    def native_value(self) -> int:
+        """The number of substituted items."""
+        update = self._update()
+        return len(update.substitutions) if update else 0
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """The ordered/sent substitution pairs, plus the order they belong to."""
+        update = self._update()
+        return {
+            "substitutions": update.substitutions if update else [],
+            "order_number": update.order_number if update else None,
+            "updated": update.updated if update else None,
+        }

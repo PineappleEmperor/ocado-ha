@@ -31,11 +31,14 @@ from .const import (
     REGEX_DAY_FULL,
     REGEX_EDIT_UNTIL,
     REGEX_ISO_TIME,
+    REGEX_MISSING_ITEM,
     REGEX_MONTH_FULL,
     REGEX_ORDINALS,
+    REGEX_SUBSTITUTION,
     REGEX_VOUCHER_CODE,
     REGEX_YEAR,
     OcadoAuthError,
+    OcadoDeliveryUpdate,
     OcadoEmail,
     OcadoEmails,
     OcadoOrder,
@@ -246,6 +249,7 @@ def email_triage(self) -> tuple[list[Any], OcadoEmails | None]:
     ocado_confirmed_orders =    []
     ocado_total =               None
     ocado_voucher =             None
+    ocado_delivery_update =     None
     # Check the previous message ids and return the old state if they're the same
     if self.data is not None:
         if self.data.get("message_ids") == message_ids:
@@ -292,6 +296,11 @@ def email_triage(self) -> tuple[list[Any], OcadoEmails | None]:
                 if ocado_voucher is None:
                     ocado_voucher = ocado_email
                     _LOGGER.debug("Added a voucher.")
+            elif ocado_email.email_type == "delivery_update":
+                # We only care about the most recent delivery-day update
+                if ocado_delivery_update is None:
+                    ocado_delivery_update = ocado_email
+                    _LOGGER.debug("Added a delivery update for order %s.", ocado_email.order_number)
             else:
                 _LOGGER.debug(
                     "Ignoring email subject=%r: unhandled type=%r, order_number=%s.",
@@ -308,6 +317,7 @@ def email_triage(self) -> tuple[list[Any], OcadoEmails | None]:
         confirmations = ocado_confirmations,
         total = ocado_total,
         voucher = ocado_voucher,
+        delivery_update = ocado_delivery_update,
     )
     _LOGGER.debug("Returning triaged emails")
     return message_ids, triaged_emails
@@ -398,6 +408,35 @@ def total_parse(ocado_email: OcadoEmail) -> OcadoOrder:
         delivery_window_end = None,
         edit_datetime       = None,
         estimated_total     = total,
+    )
+
+
+def parse_substitutions(body: str) -> list[dict[str, str]]:
+    """Return the ordered/sent item pairs from a delivery-update email body."""
+    return [
+        {"ordered": match.group(2).strip(), "sent": match.group(4).strip()}
+        for match in re.finditer(REGEX_SUBSTITUTION, body)
+    ]
+
+
+def parse_missing_items(body: str) -> list[dict[str, Any]]:
+    """Return the entirely-missing items from a delivery-update email body."""
+    # Remove substitution pairs first so their two bullets aren't read as missing.
+    without_subs = re.sub(REGEX_SUBSTITUTION, "", body)
+    return [
+        {"qty": int(match.group(1)), "item": match.group(2).strip()}
+        for match in re.finditer(REGEX_MISSING_ITEM, without_subs)
+    ]
+
+
+def delivery_update_parse(ocado_email: OcadoEmail) -> OcadoDeliveryUpdate:
+    """Parse a delivery-day update email into missing and substituted items."""
+    body = ocado_email.body or ""
+    return OcadoDeliveryUpdate(
+        updated             = ocado_email.email_date,
+        order_number        = ocado_email.order_number,
+        missing             = parse_missing_items(body),
+        substitutions       = parse_substitutions(body),
     )
 
 
