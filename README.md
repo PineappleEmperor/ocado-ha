@@ -149,7 +149,7 @@ I also have a grocery budget 'pot' and an extension to the notification can info
 The integration offers a single device containing the details about your orders:
 <details>
 <summary><strong>Ocado (UK) Deliveries</strong></summary>
-This device has 6 sensors:
+This device has 8 sensors:
 <details>
 <summary><strong>Last Total Sensor</strong></summary>
 <div style="margin-left: 25px;">
@@ -256,6 +256,42 @@ It has four attributes:
 | **Voucher**       | The voucher code.                                          |
 | **Amount**        | The voucher amount.                                        |
 | **Valid until**   | The date the voucher is valid until.                       |
+
+</div>
+</details>
+
+
+<details>
+<summary><strong>Missing Items Sensor</strong></summary>
+<div style="margin-left: 25px;">
+
+On the day of a delivery, Ocado sends a "Your upcoming Ocado delivery" email that lists any items that couldn't be delivered. This sensor's state is the number of entirely-missing items from the most recent such email (0 when nothing is missing).
+
+It has three attributes:
+
+| **Attribute**     | **Description**                                                                 |
+|-------------------|---------------------------------------------------------------------------------|
+| **Missing**       | A list of the missing items, each `{ "qty": <number>, "item": <name> }`.         |
+| **Order Number**  | The order number the delivery belongs to.                                       |
+| **Updated**       | The datetime of the email the info was taken from.                              |
+
+</div>
+</details>
+
+
+<details>
+<summary><strong>Substituted Items Sensor</strong></summary>
+<div style="margin-left: 25px;">
+
+From the same "Your upcoming Ocado delivery" email, this sensor's state is the number of substituted items — where an item you ordered was swapped for an alternative (0 when there are no substitutions).
+
+It has three attributes:
+
+| **Attribute**       | **Description**                                                                        |
+|---------------------|----------------------------------------------------------------------------------------|
+| **Substitutions**   | A list of the substitutions, each `{ "ordered": <what you ordered>, "sent": <what was delivered> }`. |
+| **Order Number**    | The order number the delivery belongs to.                                              |
+| **Updated**         | The datetime of the email the info was taken from.                                     |
 
 </div>
 </details>
