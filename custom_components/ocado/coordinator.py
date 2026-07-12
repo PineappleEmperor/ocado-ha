@@ -119,10 +119,7 @@ class OcadoUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 _LOGGER.debug("No voucher email found.")
                 voucher             = None
             if triaged_emails.delivery_update is not None:
-                try:
-                    delivery_update = delivery_update_parse(triaged_emails.delivery_update)
-                except Exception:  # noqa: BLE001
-                    delivery_update = None
+                delivery_update = delivery_update_parse(triaged_emails.delivery_update)
             else:
                 _LOGGER.debug("No delivery update email found.")
                 delivery_update     = None
