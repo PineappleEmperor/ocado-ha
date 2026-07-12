@@ -25,6 +25,8 @@ STATIC_ICON_ENTITIES = [
     (ocado_sensor.OcadoTotal, "sensor", "last_total"),
     (ocado_sensor.OcadoVoucher, "sensor", "latest_voucher"),
     (ocado_sensor.OcadoOrderList, "sensor", "orders"),
+    (ocado_sensor.OcadoMissing, "sensor", "missing_items"),
+    (ocado_sensor.OcadoSubstitutions, "sensor", "substituted_items"),
     (ocado_calendar.OcadoDeliveryCalendar, "calendar", "deliveries"),
     (ocado_calendar.OcadoEditCalendar, "calendar", "edit_deadlines"),
 ]
