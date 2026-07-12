@@ -420,8 +420,7 @@ def parse_substitutions(body: str) -> list[dict[str, str]]:
 
 
 def parse_missing_items(body: str) -> list[dict[str, Any]]:
-    """Return the entirely-missing items from a delivery-update email body."""
-    # Remove substitution pairs first so their two bullets aren't read as missing.
+    """Return the missing items, ignoring bullets that belong to substitution pairs."""
     without_subs = re.sub(REGEX_SUBSTITUTION, "", body)
     return [
         {"qty": int(match.group(1)), "item": match.group(2).strip()}

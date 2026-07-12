@@ -83,11 +83,7 @@ REGEX_ORDINALS      = r"st|nd|rd|th"
 
 REGEX_VOUCHER_CODE  = r"\bvou[a-z]*\d{6,}\b"
 
-# A substituted pair in the "Your upcoming Ocado delivery" email: the ordered
-# item, a "with" line, then the item actually sent. Matched before missing items
-# so a substitution's two bullets are not mistaken for two missing items.
 REGEX_SUBSTITUTION  = r"•\s*(\d+)\s*x\s*(.+?)\s*\n\s*with\s*\n\s*•\s*(\d+)\s*x\s*(.+)"
-# A single bulleted "N x item" line (missing item, once substitutions are removed).
 REGEX_MISSING_ITEM  = r"•\s*(\d+)\s*x\s*(.+)"
 
 EMPTY_ATTRIBUTES = {
