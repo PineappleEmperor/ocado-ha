@@ -26,7 +26,14 @@ from .const import (
     FAILURES_BEFORE_WARNING,
     OcadoAuthError,
 )
-from .utils import email_triage, order_parse, sort_orders, total_parse, voucher_parse
+from .utils import (
+    delivery_update_parse,
+    email_triage,
+    order_parse,
+    sort_orders,
+    total_parse,
+    voucher_parse,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -111,6 +118,11 @@ class OcadoUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             else:
                 _LOGGER.debug("No voucher email found.")
                 voucher             = None
+            if triaged_emails.delivery_update is not None:
+                delivery_update = delivery_update_parse(triaged_emails.delivery_update)
+            else:
+                _LOGGER.debug("No delivery update email found.")
+                delivery_update     = None
         except OcadoAuthError as err:
             # Bad credentials never resolve themselves; trigger reauth immediately.
             raise ConfigEntryAuthFailed("IMAP authentication failed") from err
@@ -157,6 +169,7 @@ class OcadoUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 "total": total,
                 "voucher": voucher,
                 "orders": orders,
+                "delivery_update": delivery_update,
             }
 
     @property

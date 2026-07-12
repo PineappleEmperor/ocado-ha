@@ -23,12 +23,14 @@ OCADO_SMARTPASS_SUBJECT         = "Payment successful: Smart Pass membership"
 OCADO_RENEWAL_SUBJECT           = "Your Smart Pass will be renewed"
 OCADO_UPDATE_SUBJECT            = "Confirmation of your order changes"
 OCADO_VOUCHER_SUBJECT           = "Price Promise voucher"
+OCADO_DELIVERY_UPDATE_SUBJECT   = "Your upcoming Ocado delivery"
 OCADO_SUBJECT_DICT = {
     OCADO_CANCELLATION_SUBJECT:   "cancellation",
     OCADO_CONFIRMATION_SUBJECT:   "confirmation",
     OCADO_UPDATE_SUBJECT:         "update",
     OCADO_NEW_TOTAL_SUBJECT:      "new_total",
     OCADO_NEW_NEW_TOTAL_SUBJECT:  "new_total",
+    OCADO_DELIVERY_UPDATE_SUBJECT: "delivery_update",
 }
 CONF_DELIVERY_TITLE = 'delivery_title'
 CONF_EDIT_TITLE     = 'edit_title'
@@ -81,6 +83,9 @@ REGEX_ORDINALS      = r"st|nd|rd|th"
 
 REGEX_VOUCHER_CODE  = r"\bvou[a-z]*\d{6,}\b"
 
+REGEX_SUBSTITUTION  = r"•\s*(\d+)\s*x\s*(.+?)\s*\n\s*with\s*\n\s*•\s*(\d+)\s*x\s*(.+)"
+REGEX_MISSING_ITEM  = r"•\s*(\d+)\s*x\s*(.+)"
+
 EMPTY_ATTRIBUTES = {
     "order_number"          : None,
     "delivery_date"         : None,
@@ -120,6 +125,16 @@ class OcadoEmails:
 
     total               : OcadoEmail | None     = None
     voucher             : OcadoEmail | None      = None
+    delivery_update     : OcadoEmail | None      = None
+
+
+@dataclass
+class OcadoDeliveryUpdate:
+    """Missing and substituted items parsed from a delivery-day update email."""
+    updated                     : datetime | date | None
+    order_number                : str | None
+    missing                     : list[dict[str, Any]]
+    substitutions               : list[dict[str, str]]
 
 @dataclass
 class OcadoOrder:

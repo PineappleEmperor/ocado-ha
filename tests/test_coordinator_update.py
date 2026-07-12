@@ -51,6 +51,7 @@ async def test_update_success_builds_data(
         "total",
         "voucher",
         "orders",
+        "delivery_update",
     }
     assert data["voucher"] is None
     assert data["total"] is None

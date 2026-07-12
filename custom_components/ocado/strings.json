@@ -16,7 +16,9 @@
         "next_edit_deadline": { "name": "Next Edit Deadline" },
         "last_total": { "name": "Last Total" },
         "orders": { "name": "Orders" },
-        "latest_voucher": { "name": "Latest Voucher" }
+        "latest_voucher": { "name": "Latest Voucher" },
+        "missing_items": { "name": "Missing Items" },
+        "substituted_items": { "name": "Substituted Items" }
       }
     },
     "config": {
