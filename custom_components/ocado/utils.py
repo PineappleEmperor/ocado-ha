@@ -297,7 +297,6 @@ def email_triage(self) -> tuple[list[Any], OcadoEmails | None]:
                     ocado_voucher = ocado_email
                     _LOGGER.debug("Added a voucher.")
             elif ocado_email.email_type == "delivery_update":
-                # We only care about the most recent delivery-day update
                 if ocado_delivery_update is None:
                     ocado_delivery_update = ocado_email
                     _LOGGER.debug("Added a delivery update for order %s.", ocado_email.order_number)
