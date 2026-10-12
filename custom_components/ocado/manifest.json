@@ -12,8 +12,8 @@
     "issue_tracker": "https://github.com/PineappleEmperor/ocado-ha/issues",
     "quality_scale": "platinum",
     "requirements": [
-      "python-dateutil>=2.9.0",
-      "BeautifulSoup4>=4.10.0"
+      "python-dateutil>=2.9.0.post0",
+      "BeautifulSoup4>=4.15.0"
     ],
     "single_config_entry": true,
     "version": "2.1.0rc1"
