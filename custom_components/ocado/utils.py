@@ -5,6 +5,7 @@ from datetime import date, datetime, timedelta
 from email import policy
 from email.message import EmailMessage
 from email.parser import BytesParser
+import imaplib
 from imaplib import IMAP4_SSL as imap
 import logging
 import re
@@ -228,6 +229,29 @@ def capitalise(text: str) -> str:
     return text[0].upper() + text[1:]
 
 
+# Response codes / phrases servers use for login failures that are not bad
+# credentials (RFC 5530 codes plus common provider wording, e.g. Gmail's
+# "[ALERT] Too many simultaneous connections").
+TRANSIENT_LOGIN_MARKERS = (
+    "[UNAVAILABLE]",
+    "[INUSE]",
+    "[LIMIT]",
+    "[SERVERBUG]",
+    "TOO MANY",
+    "TEMPORAR",
+    "TRY AGAIN",
+)
+
+
+def _is_transient_login_error(err: imaplib.IMAP4.error) -> bool:
+    """Return True if an IMAP login error is not a credentials problem."""
+    # IMAP4.abort (a subclass of IMAP4.error) means the socket dropped or timed out.
+    if isinstance(err, imaplib.IMAP4.abort):
+        return True
+    message = str(err).upper()
+    return any(marker in message for marker in TRANSIENT_LOGIN_MARKERS)
+
+
 # reversed so that we start with the newest message and break on it
 def email_triage(self) -> tuple[list[Any], OcadoEmails | None]:
     """Access the IMAP inbox and retrieve all the relevant Ocado UK emails from the last month."""
@@ -237,6 +261,10 @@ def email_triage(self) -> tuple[list[Any], OcadoEmails | None]:
     try:
         server.login(self.email_address, self.password)
     except imap.error as err:
+        if _is_transient_login_error(err):
+            # Dropped connections, server outages and rate limits clear on their
+            # own; raising OcadoAuthError here would force a needless reauth.
+            raise ConnectionError(f"Transient IMAP login error: {err}") from err
         raise OcadoAuthError("IMAP login failed") from err
     server.select(self.imap_folder, readonly=True)
     pattern = fr'SINCE "{(today - timedelta(days=self.imap_days)).strftime("%d-%b-%Y")}" (OR (FROM "{OCADO_ADDRESS}") (OR (FROM "{NEW_OCADO_ADDRESS}") (FROM "{MARKETING_OCADO_ADDRESS}"))) NOT SUBJECT "{OCADO_CUTOFF_SUBJECT}" NOT SUBJECT "{OCADO_SMARTPASS_SUBJECT}" NOT SUBJECT "{OCADO_RENEWAL_SUBJECT}"'

@@ -135,3 +135,39 @@ async def test_repair_issue_raised_and_cleared(
     ):
         await coordinator.async_update_data()
     assert registry.async_get_issue(DOMAIN, issue_id) is None
+
+
+@pytest.mark.parametrize(
+    "login_error",
+    [
+        imaplib.IMAP4.abort("socket error: EOF"),
+        imaplib.IMAP4.error("[UNAVAILABLE] Temporary System Problem. Try again later"),
+        imaplib.IMAP4.error("[ALERT] Too many simultaneous connections. (Failure)"),
+    ],
+)
+async def test_transient_login_error_does_not_trigger_reauth(
+    hass: HomeAssistant, mock_config_entry, mock_imap, login_error
+) -> None:
+    """A dropped connection or server-side refusal at login keeps cached data."""
+    coordinator = OcadoUpdateCoordinator(hass, mock_config_entry)
+    cached = {"voucher": None, "orders": None}
+    coordinator.data = cached
+    mock_imap.return_value.login.side_effect = login_error
+
+    data = await coordinator.async_update_data()
+
+    assert data is cached
+
+
+async def test_bad_credentials_at_login_trigger_reauth(
+    hass: HomeAssistant, mock_config_entry, mock_imap
+) -> None:
+    """A genuine credentials rejection from the server still triggers reauth."""
+    coordinator = OcadoUpdateCoordinator(hass, mock_config_entry)
+    coordinator.data = {"voucher": None, "orders": None}
+    mock_imap.return_value.login.side_effect = imaplib.IMAP4.error(
+        "[AUTHENTICATIONFAILED] Invalid credentials (Failure)"
+    )
+
+    with pytest.raises(ConfigEntryAuthFailed):
+        await coordinator.async_update_data()
